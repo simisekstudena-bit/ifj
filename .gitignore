@@ -1,0 +1,19 @@
+# preklad
+*.o
+*.d
+*.a
+*.out
+
+# pre gh useless docs
+*.zip
+dokumentace.pdf
+
+# editory a nástroje
+.vscode/
+.idea/
+.cache/
+
+# sys subory
+.DS_Store
+Thumbs.db
+__MACOSX/
