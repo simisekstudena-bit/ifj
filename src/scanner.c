@@ -1,5 +1,5 @@
 #include "scanner.h"
-
+static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
 static int last_indent = 0;
 
@@ -142,6 +142,22 @@ Token get_token(FILE *source_file){
                 state = STATE_EQUALS;
                 break;
             }
+            else if (c == '<') {
+                state = STATE_LESS;
+                break;
+            }
+            else if (c == '>') {
+                state = STATE_GREATER;
+                break;
+            }
+            else if (c == '!') {
+                state = STATE_NOT;
+                break;
+            }
+            else if (c == '/') {
+                state = STATE_SLASH;
+                break;
+            }
             else {
             fprintf(stderr, "Lexikalna chyba 1: neznamy znak\n");
             exit(1);
@@ -226,7 +242,42 @@ Token get_token(FILE *source_file){
                 state=STATE_START;
                 return Ttoken;
             }
-            
+        case STATE_LESS:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_LTE;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                ungetc(c, source_file);
+                Ttoken.Ttype = TOKEN_LT;
+                state = STATE_START;
+                return Ttoken;
+            }
+
+        case STATE_GREATER:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_GTE;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                ungetc(c, source_file);
+                Ttoken.Ttype = TOKEN_GT;
+                state = STATE_START;
+                return Ttoken;
+            }
+
+        case STATE_NOT:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_NEQ;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                fprintf(stderr, "Lexikalna chyba 1: samostatne ! nie je povolene\n");
+                exit(1);
+            }
         
 
 
@@ -234,6 +285,90 @@ Token get_token(FILE *source_file){
             fprintf(stderr, "Lexikalna chyba 1: desatinne cisla zatial nepodporovane\n");
             exit(1);
 
+        case STATE_SLASH:
+            if (c == '/') {
+                state = STATE_LINE_COMMENT;
+                break;
+            }
+            else if (c == '*') {
+                comment_depth = 1;
+                state = STATE_BLOCK_COMMENT;
+                break;
+            }
+            else {
+                ungetc(c, source_file);
+                Ttoken.Ttype = TOKEN_DIV;
+                state = STATE_START;
+                return Ttoken;
+            }
+
+        case STATE_LINE_COMMENT:
+            if (c == '\n' || c == EOF) {
+                if (c == '\n') ungetc(c, source_file);
+                state = STATE_START;
+            }
+            else if (c == '*') {
+                state = STATE_BLOCK_COMMENT_STAR;
+            }
+            else if (c == EOF) {
+                fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
+                exit(1);
+            }
+            break;
+
+
+            
+        case STATE_BLOCK_COMMENT:
+            if (c == '/') {
+                state = STATE_BLOCK_COMMENT_SLASH;
+            }
+            else if (c == '*') {
+                state = STATE_BLOCK_COMMENT_STAR;
+            }
+            else if (c == EOF) {
+                fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
+                exit(1);
+            }
+            break;
+
+        case STATE_BLOCK_COMMENT_SLASH:
+            if (c == '*') {
+                comment_depth++;
+                state = STATE_BLOCK_COMMENT;
+            }
+            else if (c == '/') {
+                state = STATE_BLOCK_COMMENT_SLASH;
+            }
+            else if (c == EOF) {
+                fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
+                exit(1);
+            }
+            else {
+                state = STATE_BLOCK_COMMENT;
+            }
+            break;
+
+        case STATE_BLOCK_COMMENT_STAR:
+            if (c == '/') {
+                comment_depth--;
+                if (comment_depth == 0) {
+                    state = STATE_START;
+                }
+                else {
+                    state = STATE_BLOCK_COMMENT;
+                }
+            }
+            else if (c == '*') {
+                state = STATE_BLOCK_COMMENT_STAR;
+            }
+            else if (c == EOF) {
+                fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
+                exit(1);
+            }
+            else {
+                state = STATE_BLOCK_COMMENT;
+            }
+            break;
 
 
         default:
