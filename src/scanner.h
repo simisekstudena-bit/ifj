@@ -13,6 +13,7 @@ typedef enum {
     STATE_NUMBER,
     STATE_NUMBER_UNDERSCORE,
     STATE_DOUBLE,
+    STATE_EQUALS,
     STATE_START
 } ScannerState;
 
