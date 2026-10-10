@@ -191,6 +191,8 @@ Token get_token(FILE *source_file){
 
         case STATE_NUMBER:
             if (c == '.') {
+                 buffer[length++] = c;
+                buffer[length] = '\0';
                 state = STATE_DOUBLE;
                 break;
             }
@@ -203,6 +205,12 @@ Token get_token(FILE *source_file){
             else if (c == '_') {
                 state = STATE_NUMBER_UNDERSCORE;
                 break;                           
+            }
+            else if (c == 'e' || c == 'E') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP;
+                break;
             }
             else {
                 ungetc(c, source_file);
@@ -281,9 +289,87 @@ Token get_token(FILE *source_file){
         
 
 
-        case STATE_DOUBLE:
-            fprintf(stderr, "Lexikalna chyba 1: desatinne cisla zatial nepodporovane\n");
+        case STATE_DOUBLE:                       
+            if (c >= '0' && c <= '9') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_DOUBLE_DIGITS;
+                break;
+            }
+            fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica za bodkou\n");
             exit(1);
+
+        case STATE_DOUBLE_DIGITS:                
+            if (c >= '0' && c <= '9') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                break;
+            }
+            if (c == 'e' || c == 'E') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP;
+                break;
+            }
+            if (c == 'd' || c == 'D') {
+                Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
+                Ttoken.Tatribut.db = atof(buffer);
+                length = 0;
+                state = STATE_START;
+                return Ttoken;
+            }
+            ungetc(c, source_file);
+            Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
+            Ttoken.Tatribut.db = atof(buffer);
+            length = 0;
+            state = STATE_START;
+            return Ttoken;
+
+        case STATE_EXP:                          
+            if (c == '+' || c == '-') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP_SIGN;
+                break;
+            }
+            if (c >= '0' && c <= '9') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP_DIGITS;
+                break;
+            }
+            fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica v exponente\n");
+            exit(1);
+
+        case STATE_EXP_SIGN:               
+            if (c >= '0' && c <= '9') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP_DIGITS;
+                break;
+            }
+            fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica v exponente\n");
+            exit(1);
+
+        case STATE_EXP_DIGITS:                  
+            if (c >= '0' && c <= '9') {
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                break;
+            }
+            if (c == 'd' || c == 'D') {
+                Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
+                Ttoken.Tatribut.db = atof(buffer);
+                length = 0;
+                state = STATE_START;
+                return Ttoken;
+            }
+            ungetc(c, source_file);
+            Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
+            Ttoken.Tatribut.db = atof(buffer);
+            length = 0;
+            state = STATE_START;
+            return Ttoken;
 
         case STATE_SLASH:
             if (c == '/') {
