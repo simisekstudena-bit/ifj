@@ -28,7 +28,7 @@ typedef char *symtable_key_t;
 typedef struct {
     symtable_data_t data;
     symtable_key_t key;
-} polozka_t;
+} item_t;
 
 typedef struct symtable symtable_t;
 
@@ -46,5 +46,17 @@ symtable_t *create_table(int size);
  * @param symtable tabulka ktoru chceme uvolnit
  */
 void free_symtable(symtable_t *symtable);
+
+/**
+ * Funkcia vytvori v tabulku polozku pre a podla dat ktore dostane
+ * 
+ * @param symtable tabulka symbolov v ktorej chcem prvok vytvorit
+ * @param key meno symbolu ktory ukladam do tabulky
+ * @param data informacie o vkladanom symbole
+ * 
+ * @return pravdivostna hodnota toho ci sa vytvorenie polozky podarilo
+ *         (true ak sa podarilo, false ak nie)
+ */
+bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
 
 #endif

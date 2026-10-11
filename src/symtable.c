@@ -9,15 +9,34 @@ File obsahuje source code tabulky symbolov
 #include <stdlib.h>
 
 struct symtable {
-    polozka_t *items;
+    item_t *items;
     int capacity;
 };
+
+/**
+ * Mapovacia funkcia BKDR, vypocita hash z retazca kluca
+ * Algoritmus som zobral z prednaskovych slajdov IAL pre minuly rok
+ *
+ * @param str kluc ukonceny "\0"
+ * @return hash kluca, index do tabulky je hash % capacity
+ */
+static unsigned int hash_bkdr(const char *str){
+    unsigned int seed = 131;
+    unsigned int hash = 0;
+
+    while (*str != '\0') {
+        hash = (hash * seed) + (unsigned char)(*str);
+        str++;
+    }
+
+    return hash;
+}
 
 symtable_t *create_table(int size){
     symtable_t *symtable = malloc(sizeof(*symtable));
     if (symtable == NULL) return NULL;
 
-    symtable->items = calloc(size, sizeof(polozka_t));
+    symtable->items = calloc(size, sizeof(item_t));
     if (symtable->items == NULL) {
         free(symtable);
         return NULL;
@@ -25,6 +44,11 @@ symtable_t *create_table(int size){
 
     symtable->capacity = size;
     return symtable;
+}
+
+bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
+    
+    return false;
 }
 
 void free_symtable(symtable_t *symtable){
