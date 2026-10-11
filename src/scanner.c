@@ -44,6 +44,16 @@ Token get_token(FILE *source_file){
             else if (c == '\n') {
                 space_count = 0;
                 continue;
+            }else if (c == '/') {
+                int next = fgetc(source_file);
+                if (next == '/') {
+                    //riadok je komentar ignorovany cely riadok 
+                    while ((c = fgetc(source_file)) != '\n' && c != EOF);
+                    space_count = 0;
+                    continue;
+                }
+                ungetc(next, source_file);
+                ungetc(c, source_file);
             }
             else{
 
@@ -389,20 +399,14 @@ Token get_token(FILE *source_file){
             }
 
         case STATE_LINE_COMMENT:
-            if (c == '\n' || c == EOF) {
-                if (c == '\n') ungetc(c, source_file);
+            if (c == '\n') {
+                ungetc(c, source_file);
                 state = STATE_START;
             }
-            else if (c == '*') {
-                state = STATE_BLOCK_COMMENT_STAR;
-            }
             else if (c == EOF) {
-                fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
-                exit(1);
+                state = STATE_START;
             }
             break;
-
-
             
         case STATE_BLOCK_COMMENT:
             if (c == '/') {
