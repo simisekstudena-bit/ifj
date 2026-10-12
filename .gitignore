@@ -4,6 +4,9 @@
 *.a
 *.out
 
+# binarky
+ifj26
+
 # pre gh useless docs
 *.zip
 dokumentace.pdf
