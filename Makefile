@@ -1,3 +1,6 @@
+# Projekt: Implementace prekladace
+# Author: Patrik Kadleček - xkadlep01
+ 
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -MMD -MP
 TARGET = ifj26
