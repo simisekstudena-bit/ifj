@@ -56,7 +56,7 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
 
         // pre prazdne miesto vytvorim item
         if (item->key == NULL){
-            int len = strlen(key);
+            size_t len = strlen(key) + 1;
             item->key = malloc(len);
             if (item->key == NULL) return false;
             memcpy(item->key, key, len);
@@ -69,7 +69,7 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
         }
         
         // posuniem sa na dalsiu polozku kvoli kolizii s rozdielnymi datami na rovnakom iteme
-        index = index + 1 % symtable->capacity;
+        index = (index + 1) % symtable->capacity;
     }
 
     // tabulka je plna
@@ -78,6 +78,10 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
 
 void free_symtable(symtable_t *symtable){
     if (symtable == NULL) return;
+
+    for (int i = 0; i < symtable->capacity; i++) {
+        free(symtable->items[i].key);
+    }
 
     free(symtable->items);
     free(symtable);
