@@ -59,4 +59,13 @@ void free_symtable(symtable_t *symtable);
  */
 bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
 
+/**
+ * Funkcia vyhlada podla kluca polozku s rovnakym klucom v tabulke
+ * 
+ * @param symtable tabulka symbolov v ktorej chceme prvok hladat
+ * @param key nazov ktory chceme v tabulke vyhladat
+ * 
+ * @return item ktory ma takyto key, ak neexistuje/nenasli sme vrati NULL 
+ */
+item_t *search_item(symtable_t *symtable, key_t key);
 #endif

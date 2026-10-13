@@ -62,7 +62,7 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
             memcpy(item->key, key, len);
         }
 
-        // aktualizacna semantika
+        // aktualizacna semantika (Todo: info o tom ze sa to stalo)
         if(strcmp(item->key, key) == 0) {
             item->data = data;
             return true;
@@ -74,6 +74,21 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
 
     // tabulka je plna
     return false; 
+}
+
+item_t *search_item(symtable_t *symtable, symtable_key_t key) {
+    unsigned int index = hash_bkdr(key) % symtable->capacity;
+
+    for (int i = 0; i < symtable->capacity; i++){
+        item_t *item = &symtable->items[index];
+
+        if (item->key == NULL) return NULL;
+
+        if (strcmp(item->key, key) == 0) return item;
+
+        index = (index + 1) % symtable->capacity;
+    }
+    return NULL;
 }
 
 void free_symtable(symtable_t *symtable){
