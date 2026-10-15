@@ -1,7 +1,15 @@
 #include "scanner.h"
 static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
-static int last_indent = 0;
+
+
+
+//odsadenia 
+static int indent_stack[100] = {0};
+static int indent_top = 0;     
+
+
+
 
 Token get_token(FILE *source_file){
     Token Ttoken;
@@ -23,6 +31,12 @@ Token get_token(FILE *source_file){
 
            
             if (c == EOF){
+                if (indent_top > 0) {
+                    indent_top--;
+                    Ttoken.Ttype = TOKEN_DEDENT;
+                    Ttoken.Tatribut.in = indent_stack[indent_top];
+                    return Ttoken;
+                }
             Ttoken.Ttype = TOKEN_EOF;
             return Ttoken;
 
@@ -44,44 +58,52 @@ Token get_token(FILE *source_file){
             else if (c == '\n') {
                 space_count = 0;
                 continue;
-            }else if (c == '/') {
+            }
+            else{
+                if (c == '/') {
                 int next = fgetc(source_file);
                 if (next == '/') {
                     //riadok je komentar ignorovany cely riadok 
                     while ((c = fgetc(source_file)) != '\n' && c != EOF);
                     space_count = 0;
+                   
                     continue;
                 }
-                ungetc(next, source_file);
-                ungetc(c, source_file);
+               
+                 ungetc(next, source_file);
             }
-            else{
-
             
             ungetc(c, source_file);
 
 
             //ident 
-            if (last_indent < space_count){
-                last_indent=space_count;
-                Ttoken.Ttype=TOKEN_INDENT;
-                Ttoken.Tatribut.in =space_count;
+            if (space_count > indent_stack[indent_top]) {
+                indent_stack[++indent_top] = space_count;
+                Ttoken.Ttype = TOKEN_INDENT;
+                Ttoken.Tatribut.in = space_count;
+                space_count = 0;
                 state = STATE_START;
                 return Ttoken;
             }
 
             //dedent
-            if (last_indent > space_count){
-                last_indent=space_count;
-                Ttoken.Ttype=TOKEN_DEDENT;
-                Ttoken.Tatribut.in =space_count;
-                state = STATE_START;
+            if (space_count < indent_stack[indent_top]){
+                indent_top --;
+                if (space_count > indent_stack[indent_top]) {
+                    fprintf(stderr, "Lexikalna chyba 2: odsadenie nezodpoveda ziadnej urovni\n");
+                    exit(2);
+                }
+                Ttoken.Ttype = TOKEN_DEDENT;
+                Ttoken.Tatribut.in = indent_stack[indent_top];
+                
                 return Ttoken;
             }
             space_count = 0;
             state = STATE_START;
 
+
             }
+            
             break;
 
 
