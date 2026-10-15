@@ -26,7 +26,8 @@ typedef enum {
     STATE_EXP,
     STATE_EXP_SIGN,
     STATE_EXP_DIGITS,
-   
+    STATE_DOUBLE_UNDERSCORE,
+    STATE_EXP_UNDERSCORE,
     STATE_START
 } ScannerState;
 

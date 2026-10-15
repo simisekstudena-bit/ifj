@@ -55,7 +55,7 @@ Token get_token(FILE *source_file){
 
 
             }
-            else if (c == '\n') {
+            else if (c == '\n'|| c == '\r') {
                 space_count = 0;
                 continue;
             }
@@ -337,6 +337,10 @@ Token get_token(FILE *source_file){
                 buffer[length] = '\0';
                 break;
             }
+            if (c == '_') {
+             state = STATE_DOUBLE_UNDERSCORE;
+             break;
+            }
             if (c == 'e' || c == 'E') {
                 buffer[length++] = c;
                 buffer[length] = '\0';
@@ -356,6 +360,19 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
+        case STATE_DOUBLE_UNDERSCORE:
+            if (c >= '0' && c <= '9') {
+                if ((length + 1) > 255) {
+                    fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
+                    exit(1);
+                }
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_DOUBLE_DIGITS;
+                break;
+            }
+            fprintf(stderr, "Lexikalna chyba 1: neplatny podtrznik v desatinnej casti\n");
+            exit(1);
 
         case STATE_EXP:                          
             if (c == '+' || c == '-') {
@@ -389,6 +406,11 @@ Token get_token(FILE *source_file){
                 buffer[length] = '\0';
                 break;
             }
+            if (c == '_') {
+            state = STATE_EXP_UNDERSCORE;
+            break;
+            }
+
             if (c == 'd' || c == 'D') {
                 Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
                 Ttoken.Tatribut.db = atof(buffer);
@@ -402,6 +424,20 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
+            
+        case STATE_EXP_UNDERSCORE:
+            if (c >= '0' && c <= '9') {
+                if ((length + 1) > 255) {
+                    fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
+                    exit(1);
+                }
+                buffer[length++] = c;
+                buffer[length] = '\0';
+                state = STATE_EXP_DIGITS;
+                break;
+            }
+            fprintf(stderr, "Lexikalna chyba 1: neplatny podtrznik v exponente\n");
+            exit(1);
 
         case STATE_SLASH:
             if (c == '/') {
