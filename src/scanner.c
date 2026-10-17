@@ -229,6 +229,10 @@ Token get_token(FILE *source_file){
                 break;
             }
             else if (c >= '0' && c <= '9') {
+                if (length == 1 && buffer[0] == '0') {
+                    fprintf(stderr, "Lexikalna chyba 1: cislo nesmie zacinat nulou\n");
+                    exit(1);
+                }
                 if ((length + 1) > 255) break;   // todo chyba pri pretečení
                 buffer[length++] = c;
                 buffer[length] = '\0';
@@ -255,6 +259,10 @@ Token get_token(FILE *source_file){
 
         case STATE_NUMBER_UNDERSCORE:
             if (c >= '0' && c <= '9') {
+                if (length == 1 && buffer[0] == '0') {
+                    fprintf(stderr, "Lexikalna chyba 1: cislo nesmie zacinat nulou\n");
+                    exit(1);
+                }
                 if ((length + 1) > 255) {
                     fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
                     exit(1);
@@ -360,6 +368,7 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
+            
         case STATE_DOUBLE_UNDERSCORE:
             if (c >= '0' && c <= '9') {
                 if ((length + 1) > 255) {
@@ -424,7 +433,7 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
-            
+
         case STATE_EXP_UNDERSCORE:
             if (c >= '0' && c <= '9') {
                 if ((length + 1) > 255) {
