@@ -10,6 +10,20 @@ File obsahuje rozhranie tabulky symbolov
 
 #include <stdbool.h>
 
+/**
+ * Navratove stavy tabulky symbolov. 
+ * Mapovanie robi volajuci.
+ */
+typedef enum{
+    SYMTABLE_OK = 0,
+    SYMTABLE_ERR_ALLOC, // nepodarilo sa alokovat polozku
+    SYMTABLE_ERR_EXISTS, // navratovy stav pre pripad ze prvok s rovnakym 
+                         // klucom existuje. treba najst prvok a manualne ho prepisat
+                         // ak je prepisanie potrebne
+    SYMTABLE_ERR_FULL, // symtable je plny (todo: preratavat velkost? slebo buffer)
+    SYMTABLE_ERR_ARGUMENT, // NULL
+} symtable_status_t;
+
 typedef enum {
     TYPE_INT,
     TYPE_DOUBLE,
@@ -48,16 +62,16 @@ symtable_t *create_table(int size);
 void free_symtable(symtable_t *symtable);
 
 /**
- * Funkcia vytvori v tabulku polozku pre a podla dat ktore dostane
- * 
+ * Funkcia vlozi do tabulky symbol.
+ * Ak kluc existuje funkcia vrati ze sa v tabulke nachadza policko s rovnakym klucom.
+ * a treba manualne prepisa5 policko
  * @param symtable tabulka symbolov v ktorej chcem prvok vytvorit
  * @param key meno symbolu ktory ukladam do tabulky
  * @param data informacie o vkladanom symbole
  * 
- * @return pravdivostna hodnota toho ci sa vytvorenie polozky podarilo
- *         (true ak sa podarilo, false ak nie)
+ * @return stavy z symtable_status_t o tom ci presiel zapis
  */
-bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
+symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
 
 /**
  * Funkcia vyhlada podla kluca polozku s rovnakym klucom v tabulke
@@ -67,5 +81,5 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
  * 
  * @return item ktory ma takyto key, ak neexistuje/nenasli sme vrati NULL 
  */
-item_t *search_item(symtable_t *symtable, key_t key);
+item_t *search_item(symtable_t *symtable, symtable_key_t key);
 #endif

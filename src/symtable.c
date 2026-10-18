@@ -18,7 +18,7 @@ struct symtable {
  * Mapovacia funkcia BKDR, vypocita hash z retazca kluca
  * Algoritmus som zobral z prednaskovych slajdov IAL pre minuly rok
  *
- * @param str kluc ukonceny "\0"
+ * @param str kluc ukonceny '\0'
  * @return hash kluca, index do tabulky je hash % capacity
  */
 static unsigned int hash_bkdr(const char *str){
@@ -33,6 +33,7 @@ static unsigned int hash_bkdr(const char *str){
 }
 
 symtable_t *create_table(int size){
+    if (size <= 0) return NULL;
     symtable_t *symtable = malloc(sizeof(*symtable));
     if (symtable == NULL) return NULL;
 
@@ -46,8 +47,8 @@ symtable_t *create_table(int size){
     return symtable;
 }
 
-bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
-    if (key == NULL || symtable == NULL) return false;
+symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
+    if (key == NULL || symtable == NULL) return SYMTABLE_ERR_ARGUMENT;
 
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
@@ -58,25 +59,27 @@ bool insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
         if (item->key == NULL){
             size_t len = strlen(key) + 1;
             item->key = malloc(len);
-            if (item->key == NULL) return false;
+            if (item->key == NULL) return SYMTABLE_ERR_ALLOC;
             memcpy(item->key, key, len);
+            item->data = data;
+            return SYMTABLE_OK;
         }
 
-        // aktualizacna semantika (Todo: info o tom ze sa to stalo)
+        // vracia ze zapis s rovnakym klucom existuje
         if(strcmp(item->key, key) == 0) {
-            item->data = data;
-            return true;
+            return SYMTABLE_ERR_EXISTS;
         }
         
         // posuniem sa na dalsiu polozku kvoli kolizii s rozdielnymi datami na rovnakom iteme
         index = (index + 1) % symtable->capacity;
     }
 
-    // tabulka je plna
-    return false; 
+    // tabulka je plna 
+    return SYMTABLE_ERR_FULL; 
 }
 
 item_t *search_item(symtable_t *symtable, symtable_key_t key) {
+    if ((symtable == NULL)||(key == NULL)) return NULL;
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
     for (int i = 0; i < symtable->capacity; i++){
