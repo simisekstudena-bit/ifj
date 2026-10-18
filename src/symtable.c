@@ -12,6 +12,7 @@ File obsahuje source code tabulky symbolov
 struct symtable {
     item_t *items;
     int capacity;
+    int count;
 };
 
 /**
@@ -70,15 +71,47 @@ symtable_t *create_table(int size){
     if (size <= 0) return NULL;
     symtable_t *symtable = malloc(sizeof(*symtable));
     if (symtable == NULL) return NULL;
-
+    
+    symtable->capacity = next_prime(size);
     symtable->items = calloc(size, sizeof(item_t));
     if (symtable->items == NULL) {
         free(symtable);
         return NULL;
     }
 
-    symtable->capacity = size;
     return symtable;
+}
+
+/**
+ * Zvacsime tabulku na najblizsie vacsie prvocislo a potom presunieme prvky tabulky na ich nove
+ * prepocitane indexy. 
+ * 
+ * @param symtable tabulka ktoru zvacsujem
+ * @return SYMTABLE_OK alebo chybovy stav, nove polozky aj s pridanym miesotm zostavaju
+ *         pod rovnakou tabulkou
+ */
+static symtable_status_t *resize_symtable(symtable_t *symtable) {
+    int new_capacity = next_prime((symtable->capacity) * 2);
+    item_t *new_items = calloc(new_capacity, sizeof(item_t));
+    if (new_items == NULL) return SYMTABLE_ERR_ALLOC;
+
+    for (int i = 0; i < symtable->capacity; i++){
+        item_t *old = &symtable->items[i];
+        if (old->key != NULL) continue;
+        
+        unsigned int index = hash_bkdr(old->key) % new_capacity;
+        
+        // hladam nove pollicko dokym nenajdem nekolidujuce
+        while (new_items[index].key != NULL) {
+            index = (index + 1) % new_capacity;
+        }
+        new_items[index] = *old;
+    }
+    
+    free(symtable->items);
+    symtable->items = new_items;
+    symtable->capacity = new_capacity;
+    return SYMTABLE_OK;
 }
 
 symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
