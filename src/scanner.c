@@ -6,8 +6,14 @@ static ScannerState state = STATE_LINE_START;
 
 //odsadenia 
 static int indent_stack[100] = {0};
-static int indent_top = 0;     
+static int indent_top = 0;  
 
+void free_token(Token t) {
+    if (t.Ttype == TOKEN_LITERAL_STRING && t.Tatribut.string != NULL) {
+        free(t.Tatribut.string);
+        t.Tatribut.string = NULL;
+    }
+}
 
 
 Token get_token(FILE *source_file){
@@ -281,7 +287,6 @@ Token get_token(FILE *source_file){
             }else{
                 fprintf(stderr, "Lexikalna chyba 1: neplatny podtrznik v cisle\n");
                 exit(1);
-                //TODO ERROR
             }
 
 
@@ -613,7 +618,7 @@ Token get_token(FILE *source_file){
                 break;
 
 
-            // scape sekvence
+            // escape sekvence
             case STATE_STRING_ESCAPE: {
                 char out;
                 if (c == 'n')       out = '\n';

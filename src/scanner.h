@@ -103,4 +103,5 @@ TokenAtribut Tatribut;
 
 Token get_token(FILE *source_file);
 
+void free_token(Token t);
   #endif
