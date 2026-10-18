@@ -32,6 +32,40 @@ static unsigned int hash_bkdr(const char *str){
     return hash;
 }
 
+/**
+ * Zisti ci je cislo prvocislo pre volbu kapacity tabulky
+ * 
+ * @param n testovane cislo
+ * @return true ak je n prvocislo, inak false
+ */
+static bool is_prime(int n){
+    if (n < 2) return false;
+    if (n % 2 == 0) return n == 2;
+
+    // neparne delitele po odmocninu z n
+    for (int i = 3; i <= n / i; i += 2) {
+        if (n % i == 0) return false;
+    }
+
+    return true;
+}
+
+/**
+ * Najde najmensie prvocislo vacsie alebo rovne n
+ *
+ * @param n cislo od ktoreho hladam
+ * @return najblizsie prvocislo
+ */
+static int next_prime(int n){
+    if (n < 2) return 2;
+
+    while (!is_prime(n)) {
+        n++;
+    }
+
+    return n;
+}
+
 symtable_t *create_table(int size){
     if (size <= 0) return NULL;
     symtable_t *symtable = malloc(sizeof(*symtable));
