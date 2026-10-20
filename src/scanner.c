@@ -561,7 +561,15 @@ Token get_token(FILE *source_file){
 
            case STATE_STRING_QUOTES2:
             if (c == '"') {
-                quotes++;
+                quotes = 3;
+                cap = 16;
+                str = malloc(cap);
+                if (str == NULL) {
+                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                    exit(99);
+                }
+                length = 0;
+                str[0] = '\0';
                 state = STATE_MULTILINE_STRING;
                 break;
             }
@@ -582,6 +590,94 @@ Token get_token(FILE *source_file){
                 state = STATE_START;
                 return Ttoken;
 
+
+
+            case STATE_MULTILINE_STRING:
+                if (c == '"') {
+                    quotes = 1;
+                    state = STATE_MULTILINE_QUOTES;
+                    break;
+                }
+                if (c == EOF) {
+                    free(str);
+                    fprintf(stderr, "Lexikalna chyba 1: neukonceny viacriadkovy retazec\n");
+                    exit(1);
+                }
+                if (length + 2 > cap) {
+                    int newcap = cap * 2;
+                    char *tmp = realloc(str, newcap);
+                    if (tmp == NULL) {
+                        free(str);
+                        fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                        exit(99);
+                    }
+                    str = tmp;
+                    cap = newcap;
+                }
+                str[length++] = (char)c;
+                str[length] = '\0';
+                break;
+
+
+
+
+            case STATE_MULTILINE_QUOTES:
+                if (c == '"') {
+                    quotes++;
+                    break;
+                }
+                if (quotes >= 3) {
+                    //posledne tri uvodzovky ukoncuju ostatne patria do obsahu 
+                    int extra = quotes - 3;
+                    while (length + extra + 2 > cap) {
+                        int newcap = cap * 2;
+                        char *tmp = realloc(str, newcap);
+                        if (tmp == NULL) {
+                            free(str);
+                            fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                            exit(99);
+                        }
+                        str = tmp;
+                        cap = newcap;
+                    }
+                    for (int i = 0; i < extra; i++)
+                        str[length++] = '"';
+                    str[length] = '\0';
+
+                    Ttoken.Ttype = TOKEN_LITERAL_STRING;
+                    Ttoken.Tatribut.string = str;
+                    str = NULL;
+                    cap = 0;
+                    length = 0;
+                    quotes = 0;
+                    state = STATE_START;
+                    if (c != EOF)
+                        ungetc(c, source_file);
+                    return Ttoken;
+                }
+                // menej nez tri uvodzovky sucast obsahu 
+                if (c == EOF) {
+                    free(str);
+                    fprintf(stderr, "Lexikalna chyba 1: neukonceny viacriadkovy retazec\n");
+                    exit(1);
+                }
+                while (length + quotes + 2 > cap) {
+                    int newcap = cap * 2;
+                    char *tmp = realloc(str, newcap);
+                    if (tmp == NULL) {
+                        free(str);
+                        fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                        exit(99);
+                    }
+                    str = tmp;
+                    cap = newcap;
+                }
+                for (int i = 0; i < quotes; i++) str[length++] = '"';
+                quotes = 0;
+                str[length] = '\0';
+                ungetc(c, source_file);
+                state = STATE_MULTILINE_STRING;
+                break;
 
             case STATE_STRING:
                 if (c == '"') {
