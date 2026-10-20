@@ -39,15 +39,16 @@ typedef struct {
 
 typedef struct symtable symtable_t;
 
-typedef struct {
+typedef struct block {
     symtable_t *symtable;
-    block_t *parent;
+    struct block *parent;
 } block_t;
 
-typedef struct block{
+typedef struct {
     int size;
-    struct block *top;
+    block_t *top;
 } symtable_stack_t;
+
 
 typedef char *symtable_key_t;
 

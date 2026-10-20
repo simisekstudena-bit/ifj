@@ -24,12 +24,13 @@ symtable_stack_t *init_stack(void){
 }
 
 symtable_t *stack_top(symtable_stack_t *stack){
-    if (stack->top == NULL) return NULL;
+    if (stack == NULL || stack->top == NULL)  return NULL;
     if (stack->top != NULL) return stack->top->symtable;
     else return NULL;
 }
 
 symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
+    if (stack == NULL) return NULL;
     block_t *block = malloc(sizeof(block_t));
     if (block == NULL) return NULL;
 
@@ -41,7 +42,8 @@ symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
 }
 
 symtable_stack_t *stack_pop(symtable_stack_t *stack) {
-    if (stack == NULL || stack->top == NULL) return NULL;
+    if (stack == NULL ) return NULL;
+    if (stack->top == NULL) return stack;
     block_t *top_block = stack->top;
     stack->top = top_block->parent;
     stack->size--;
@@ -109,11 +111,13 @@ symtable_t *create_table(int size){
     if (symtable == NULL) return NULL;
     
     symtable->capacity = next_prime(size);
-    symtable->items = calloc(size, sizeof(item_t));
+    symtable->items = calloc(symtable->capacity, sizeof(item_t));
     if (symtable->items == NULL) {
         free(symtable);
         return NULL;
     }
+
+    symtable->count = 0;
 
     return symtable;
 }
@@ -126,14 +130,14 @@ symtable_t *create_table(int size){
  * @return SYMTABLE_OK alebo chybovy stav, nove polozky aj s pridanym miesotm zostavaju
  *         pod rovnakou tabulkou
  */
-static symtable_status_t *resize_symtable(symtable_t *symtable) {
+static symtable_status_t resize_symtable(symtable_t *symtable) {
     int new_capacity = next_prime((symtable->capacity) * 2);
     item_t *new_items = calloc(new_capacity, sizeof(item_t));
     if (new_items == NULL) return SYMTABLE_ERR_ALLOC;
 
     for (int i = 0; i < symtable->capacity; i++){
         item_t *old = &symtable->items[i];
-        if (old->key != NULL) continue;
+        if (old->key == NULL) continue;
         
         unsigned int index = hash_bkdr(old->key) % new_capacity;
         
@@ -153,6 +157,11 @@ static symtable_status_t *resize_symtable(symtable_t *symtable) {
 symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
     if (key == NULL || symtable == NULL) return SYMTABLE_ERR_ARGUMENT;
 
+    if ((symtable->count + 1) * 10 > symtable->capacity * 7) {
+        symtable_status_t status = resize_symtable(symtable);
+        if (status != SYMTABLE_OK) return status;
+    }
+
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
     for (int i = 0; i < symtable->capacity; i++){
@@ -165,6 +174,7 @@ symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_
             if (item->key == NULL) return SYMTABLE_ERR_ALLOC;
             memcpy(item->key, key, len);
             item->data = data;
+            symtable->count++;
             return SYMTABLE_OK;
         }
 
