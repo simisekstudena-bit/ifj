@@ -37,14 +37,24 @@ typedef struct {
     bool variable;
 }symtable_data_t;
 
+typedef struct symtable symtable_t;
+
+typedef struct {
+    symtable_t *symtable;
+    block_t *parent;
+} block_t;
+
+typedef struct {
+    int size;
+    block_t *top;
+} symtable_stack_t;
+
 typedef char *symtable_key_t;
 
 typedef struct {
     symtable_data_t data;
     symtable_key_t key;
 } item_t;
-
-typedef struct symtable symtable_t;
 
 /**
  * Funkcia vytvori prazdnu tabulku symbolov

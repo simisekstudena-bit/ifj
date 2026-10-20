@@ -15,6 +15,31 @@ struct symtable {
     int count;
 };
 
+symtable_stack_t *init_stack(void){
+    symtable_stack_t *stack = malloc(sizeof(symtable_stack_t));
+    if (stack == NULL) return NULL;
+    stack->top = NULL;
+    stack->size = 0;
+    return stack;
+}
+
+symtable_t *stack_top(symtable_stack_t *stack){
+    if (stack->top == NULL) return NULL;
+    if (stack->top != NULL) return stack->top->symtable;
+    else return NULL;
+}
+
+symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
+    block_t *block = malloc(sizeof(block_t));
+    if (block == NULL) return NULL;
+
+    block->symtable = symtable;
+    block->parent = stack->top;
+    stack->top = block;
+    stack->size++;
+    return stack;
+}
+
 /**
  * Mapovacia funkcia BKDR, vypocita hash z retazca kluca
  * Algoritmus som zobral z prednaskovych slajdov IAL pre minuly rok
