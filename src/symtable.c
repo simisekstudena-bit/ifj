@@ -40,6 +40,17 @@ symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
     return stack;
 }
 
+symtable_stack_t *stack_pop(symtable_stack_t *stack) {
+    if (stack == NULL || stack->top == NULL) return NULL;
+    block_t *top_block = stack->top;
+    stack->top = top_block->parent;
+    stack->size--;
+    
+    free_symtable(top_block->symtable);
+    free(top_block);
+    return stack;
+}
+
 /**
  * Mapovacia funkcia BKDR, vypocita hash z retazca kluca
  * Algoritmus som zobral z prednaskovych slajdov IAL pre minuly rok
