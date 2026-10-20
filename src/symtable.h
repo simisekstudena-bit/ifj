@@ -44,9 +44,9 @@ typedef struct {
     block_t *parent;
 } block_t;
 
-typedef struct {
+typedef struct block{
     int size;
-    block_t *top;
+    struct block *top;
 } symtable_stack_t;
 
 typedef char *symtable_key_t;
