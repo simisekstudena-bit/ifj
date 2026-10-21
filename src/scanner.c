@@ -279,6 +279,7 @@ Token get_token(FILE *source_file){
         return Ttoken;
 
         case STATE_NUMBER:
+        
             if (c == '.') {
                  buffer[length++] = c;
                 buffer[length] = '\0';
@@ -305,6 +306,10 @@ Token get_token(FILE *source_file){
                 state = STATE_EXP;
                 break;
             }
+            else if (c == 'd' || c == 'D') {
+                fprintf(stderr, "Lexikalna chyba 1: pripona d patri len desatinnemu literalu\n");
+                exit(1);
+            }
             else {
                 ungetc(c, source_file);
                 Ttoken.Ttype = TOKEN_LITERAL_INT;
@@ -313,7 +318,7 @@ Token get_token(FILE *source_file){
                 state = STATE_START;
                 return Ttoken;
             }
-
+            
         case STATE_NUMBER_UNDERSCORE:
             if (c >= '0' && c <= '9') {
                 if (length == 1 && buffer[0] == '0') {
