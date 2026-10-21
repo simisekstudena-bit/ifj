@@ -15,6 +15,10 @@ struct symtable {
     int count;
 };
 
+bool stack_is_empty(symtable_stack_t *stack) {
+    return stack == NULL || stack->top == NULL;
+}
+
 symtable_stack_t *init_stack(void){
     symtable_stack_t *stack = malloc(sizeof(symtable_stack_t));
     if (stack == NULL) return NULL;
@@ -24,9 +28,8 @@ symtable_stack_t *init_stack(void){
 }
 
 symtable_t *stack_top(symtable_stack_t *stack){
-    if (stack == NULL || stack->top == NULL)  return NULL;
-    if (stack->top != NULL) return stack->top->symtable;
-    else return NULL;
+    if (stack_is_empty(stack) || stack->top == NULL)  return NULL;
+    return stack->top->symtable;
 }
 
 symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
@@ -42,8 +45,7 @@ symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
 }
 
 symtable_stack_t *stack_pop(symtable_stack_t *stack) {
-    if (stack == NULL ) return NULL;
-    if (stack->top == NULL) return stack;
+    if (stack_is_empty(stack)) return stack;
     block_t *top_block = stack->top;
     stack->top = top_block->parent;
     stack->size--;
@@ -54,13 +56,21 @@ symtable_stack_t *stack_pop(symtable_stack_t *stack) {
 }
 
 item_t *stack_search(symtable_stack_t *stack, symtable_key_t key) {
-    if (stack == NULL) return NULL;
+    if (stack_is_empty(stack)) return NULL;
 
     for (block_t *current_block = stack->top; current_block != NULL; current_block = current_block->parent) {
         item_t *item = search_item(current_block->symtable, key);
         if (item != NULL) return item;
     }
     return NULL;
+}
+
+void free_stack(symtable_stack_t *stack) {
+    if (stack == NULL) return;
+    while(!stack_is_empty(stack)) {
+        stack_pop(stack);
+    }
+    free(stack);
 }
 
 /**
