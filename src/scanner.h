@@ -102,7 +102,21 @@ TokenAtribut Tatribut;
 
 }Token; 
 
+
+typedef struct {
+    const char *name;
+    TokenType type;
+} Keyword;
+
+
+
+
 Token get_token(FILE *source_file);
 
-void free_token(Token t);
+void free_token(Token *t);
+
+TokenType lookup_keyword(char *str);
+
   #endif
+
+

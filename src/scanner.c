@@ -1,4 +1,24 @@
 #include "scanner.h"
+
+
+Keyword keywords[] = {
+    {"def", TOKEN_KW_DEF},
+    {"do", TOKEN_KW_DO},
+    {"else", TOKEN_KW_ELSE},
+    {"if", TOKEN_KW_IF},
+    {"import", TOKEN_KW_IMPORT},
+    {"return", TOKEN_KW_RETURN},
+    {"then", TOKEN_KW_THEN},
+    {"val", TOKEN_KW_VAL},
+    {"var", TOKEN_KW_VAR},
+    {"while", TOKEN_KW_WHILE},
+    {"Int", TOKEN_KW_INT},
+    {"Double", TOKEN_KW_DOUBLE},
+    {"String", TOKEN_KW_STRING},
+    {"Unit", TOKEN_KW_UNIT},
+};
+
+
 static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
 
@@ -8,11 +28,21 @@ static ScannerState state = STATE_LINE_START;
 static int indent_stack[100] = {0};
 static int indent_top = 0;  
 
-void free_token(Token t) {
-    if (t.Ttype == TOKEN_LITERAL_STRING && t.Tatribut.string != NULL) {
-        free(t.Tatribut.string);
-        t.Tatribut.string = NULL;
+void free_token(Token *t) {
+    if ((t->Ttype == TOKEN_LITERAL_STRING || t->Ttype == TOKEN_IDENTIFIER) && t->Tatribut.string != NULL) {
+        free(t->Tatribut.string);
+        t->Tatribut.string = NULL;
     }
+}
+
+TokenType lookup_keyword(char *str){
+    long int n = sizeof(keywords) / sizeof(keywords[0]);
+    for (long int i = 0; i < n; i++) {
+        if (strcmp(str, keywords[i].name) == 0)
+            return keywords[i].type;
+    }
+    return TOKEN_IDENTIFIER;
+
 }
 
 
@@ -131,9 +161,15 @@ Token get_token(FILE *source_file){
             }
             else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
             
-            buffer[0]=c;
+            cap = 16;
+            str = malloc(cap);
+            if (str == NULL) {
+                fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                exit(99);
+            }
+            str[0] = (char)c;
+            str[1] = '\0';
             length = 1;
-            buffer[length] = '\0';
             state = STATE_IDENTIFIER;
             
             }
@@ -209,30 +245,38 @@ Token get_token(FILE *source_file){
         }
             break;
 
-            
+        
         case STATE_IDENTIFIER:
-            if( (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9')){
-                if ((length + 1 )>255) break;//TODO ERROR VYRIESIT 
-                buffer[length++] = c;
-                buffer[length]= '\0';
-                break;
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9')) {
+            if (length + 2 > cap) {
+                int newcap = cap > 0 ? cap * 2 : 16;
+                char *tmp = realloc(str, newcap);
+                if (tmp == NULL) {
+                    free(str);
+                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                    exit(99);
+                }
+                str = tmp;
+                cap = newcap;
             }
-            else {
-                ungetc(c, source_file);
-                //TODO: TABULKU POROVNAVANIA IDENTIF S SLOVAMI IF,def,.....
-
-
-                Ttoken.Ttype = TOKEN_IDENTIFIER;
-                //TODO: vyplnenie stringu v atribute tokenu 
-
-                //Ttoken.Tatribut.string =;
-
-
-                length = 0;
-                state = STATE_START;
-                return Ttoken;
-            
-            }
+            str[length++] = (char)c;
+            str[length] = '\0';
+            break;
+        }
+        ungetc(c, source_file);
+        Ttoken.Ttype = lookup_keyword(str);
+        if (Ttoken.Ttype == TOKEN_IDENTIFIER) {
+            Ttoken.Tatribut.string = str;
+            str = NULL;
+        }
+        else {
+            free(str);
+        }
+        str = NULL;
+        cap = 0;
+        length = 0;
+        state = STATE_START;
+        return Ttoken;
 
         case STATE_NUMBER:
             if (c == '.') {
