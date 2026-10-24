@@ -9,8 +9,11 @@ File obsahuje source code tabulky symbolov
 #include <stdlib.h>
 #include <string.h>
 
+// horna hranica kapacity aby nepretiekol int
+#define SYMTABLE_MAX_CAPACITY (1000000)
+
 struct symtable {
-    item_t *items;
+    item_t **items;
     int capacity;
     int count;
 };
@@ -32,16 +35,16 @@ symtable_t *stack_top(symtable_stack_t *stack){
     return stack->top->symtable;
 }
 
-symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable){
-    if (stack == NULL) return NULL;
+symtable_status_t stack_push(symtable_stack_t *stack, symtable_t *symtable){
+    if (stack == NULL || symtable == NULL) return SYMTABLE_ERR_ARGUMENT;
     block_t *block = malloc(sizeof(block_t));
-    if (block == NULL) return NULL;
+    if (block == NULL) return SYMTABLE_ERR_ALLOC;
 
     block->symtable = symtable;
     block->parent = stack->top;
     stack->top = block;
     stack->size++;
-    return stack;
+    return SYMTABLE_OK;
 }
 
 symtable_stack_t *stack_pop(symtable_stack_t *stack) {
@@ -55,7 +58,7 @@ symtable_stack_t *stack_pop(symtable_stack_t *stack) {
     return stack;
 }
 
-item_t *stack_search(symtable_stack_t *stack, symtable_key_t key) {
+item_t *stack_search(symtable_stack_t *stack, const char *key) {
     if (stack_is_empty(stack)) return NULL;
 
     for (block_t *current_block = stack->top; current_block != NULL; current_block = current_block->parent) {
@@ -126,12 +129,12 @@ static int next_prime(int n){
 }
 
 symtable_t *create_table(int size){
-    if (size <= 0) return NULL;
+    if (size <= 0 || size > SYMTABLE_MAX_CAPACITY) return NULL;
     symtable_t *symtable = malloc(sizeof(*symtable));
     if (symtable == NULL) return NULL;
     
     symtable->capacity = next_prime(size);
-    symtable->items = calloc(symtable->capacity, sizeof(item_t));
+    symtable->items = calloc(symtable->capacity, sizeof(item_t *));
     if (symtable->items == NULL) {
         free(symtable);
         return NULL;
@@ -144,28 +147,29 @@ symtable_t *create_table(int size){
 
 /**
  * Zvacsime tabulku na najblizsie vacsie prvocislo a potom presunieme prvky tabulky na ich nove
- * prepocitane indexy. 
- * 
+ * prepocitane indexy. Presuvaju sa iba pointre, takze pointre na item_t ostavaju platne.
+ *
  * @param symtable tabulka ktoru zvacsujem
  * @return SYMTABLE_OK alebo chybovy stav, nove polozky aj s pridanym miesotm zostavaju
  *         pod rovnakou tabulkou
  */
 static symtable_status_t resize_symtable(symtable_t *symtable) {
+    if (symtable->capacity > SYMTABLE_MAX_CAPACITY / 2) return SYMTABLE_ERR_ALLOC;
     int new_capacity = next_prime((symtable->capacity) * 2);
-    item_t *new_items = calloc(new_capacity, sizeof(item_t));
+    item_t **new_items = calloc(new_capacity, sizeof(item_t *));
     if (new_items == NULL) return SYMTABLE_ERR_ALLOC;
 
     for (int i = 0; i < symtable->capacity; i++){
-        item_t *old = &symtable->items[i];
-        if (old->key == NULL) continue;
-        
+        item_t *old = symtable->items[i];
+        if (old == NULL) continue;
+
         unsigned int index = hash_bkdr(old->key) % new_capacity;
-        
+
         // hladam nove pollicko dokym nenajdem nekolidujuce
-        while (new_items[index].key != NULL) {
+        while (new_items[index] != NULL) {
             index = (index + 1) % new_capacity;
         }
-        new_items[index] = *old;
+        new_items[index] = old;
     }
     
     free(symtable->items);
@@ -174,8 +178,9 @@ static symtable_status_t resize_symtable(symtable_t *symtable) {
     return SYMTABLE_OK;
 }
 
-symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data){
+symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_data_t data){
     if (key == NULL || symtable == NULL) return SYMTABLE_ERR_ARGUMENT;
+    if (search_item(symtable, key) != NULL) return SYMTABLE_ERR_EXISTS;
 
     if ((symtable->count + 1) * 10 > symtable->capacity * 7) {
         symtable_status_t status = resize_symtable(symtable);
@@ -185,25 +190,25 @@ symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
     for (int i = 0; i < symtable->capacity; i++){
-        item_t *item = &symtable->items[index];
+        item_t *item = symtable->items[index];
 
         // pre prazdne miesto vytvorim item
-        if (item->key == NULL){
+        if (item == NULL){
+            item = malloc(sizeof(item_t));
+            if (item == NULL) return SYMTABLE_ERR_ALLOC;
             size_t len = strlen(key) + 1;
             item->key = malloc(len);
-            if (item->key == NULL) return SYMTABLE_ERR_ALLOC;
+            if (item->key == NULL) {
+                free(item);
+                return SYMTABLE_ERR_ALLOC;
+            }
             memcpy(item->key, key, len);
             item->data = data;
+            symtable->items[index] = item;
             symtable->count++;
             return SYMTABLE_OK;
         }
 
-        // vracia ze zapis s rovnakym klucom existuje
-        if(strcmp(item->key, key) == 0) {
-            return SYMTABLE_ERR_EXISTS;
-        }
-        
-        // posuniem sa na dalsiu polozku kvoli kolizii s rozdielnymi datami na rovnakom iteme
         index = (index + 1) % symtable->capacity;
     }
 
@@ -211,14 +216,14 @@ symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_
     return SYMTABLE_ERR_FULL; 
 }
 
-item_t *search_item(symtable_t *symtable, symtable_key_t key) {
+item_t *search_item(symtable_t *symtable, const char *key) {
     if ((symtable == NULL)||(key == NULL)) return NULL;
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
     for (int i = 0; i < symtable->capacity; i++){
-        item_t *item = &symtable->items[index];
+        item_t *item = symtable->items[index];
 
-        if (item->key == NULL) return NULL;
+        if (item == NULL) return NULL;
 
         if (strcmp(item->key, key) == 0) return item;
 
@@ -231,7 +236,9 @@ void free_symtable(symtable_t *symtable){
     if (symtable == NULL) return;
 
     for (int i = 0; i < symtable->capacity; i++) {
-        free(symtable->items[i].key);
+        if (symtable->items[i] == NULL) continue;
+        free(symtable->items[i]->key);
+        free(symtable->items[i]);
     }
 
     free(symtable->items);

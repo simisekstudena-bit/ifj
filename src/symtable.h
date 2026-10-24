@@ -82,9 +82,10 @@ void free_symtable(symtable_t *symtable);
  * @param key meno symbolu ktory ukladam do tabulky
  * @param data informacie o vkladanom symbole
  * 
- * @return stavy z symtable_status_t o tom ci presiel zapis
+ * @return stavy z symtable_status_t o tom ci presiel zapis.
+ *         insert vie taktiez nafukovat pole, pointre na item_t vratene skor ale ostavaju platne
  */
-symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_data_t data);
+symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_data_t data);
 
 /**
  * Funkcia vyhlada podla kluca polozku s rovnakym klucom v tabulke
@@ -94,7 +95,7 @@ symtable_status_t insert_data(symtable_t *symtable, symtable_key_t key,symtable_
  * 
  * @return item ktory ma takyto key, ak neexistuje/nenasli sme vrati NULL 
  */
-item_t *search_item(symtable_t *symtable, symtable_key_t key);
+item_t *search_item(symtable_t *symtable, const char *key);
 
 /**
  * Funkcia inicializuje prazdny stack
@@ -112,7 +113,8 @@ bool stack_is_empty(symtable_stack_t *stack);
 /**
  * Funkcia pouzivatelovi vrati vrchny symtable zo stacku
  * @param stack ktory chceme skontrolovat
- * @return pointer na symtable na vrchu stacku
+ * @return pointer na symtable na vrchu stacku. Symtable patri stacku, volajuci ho nesmie
+ *         uvolnit a po stack_pop/free_stack pointer prestava platit
  */
 symtable_t *stack_top(symtable_stack_t *stack);
 
@@ -120,13 +122,18 @@ symtable_t *stack_top(symtable_stack_t *stack);
  * Funkia vlozi zadany symtable na vrch stacku
  * @param stack ktory na ktory pushujeme
  * @param symtable ktory vkladame na vrch stacku
- * @return pointer na aktualizovany stack, (stary pointer na stack je ale tiez aktalny).
- *         pri chybe alokacie vrati NULL
+ * @return SYMTABLE_OK, potom symtable patri stacku a uvolni ho stack_pop/free_stack.
+ *         pri chybe (SYMTABLE_ERR_ALLOC, SYMTABLE_ERR_ARGUMENT) sa stack nezmeni
+ *         a symtable musi uvolnit volajuci.
+ *         po uspesnom pushi volajuci symtable sam neuvolnuje a ten isty symtable
+ *         sa nesmie pushnut dvakrat (vznikne dva krat pointer na rovnaky symtable)
  */
-symtable_stack_t *stack_push(symtable_stack_t *stack, symtable_t *symtable);
+symtable_status_t stack_push(symtable_stack_t *stack, symtable_t *symtable);
 
 /**
- * Funkcia vyhodi a uvolni symtable (blok) z vrchu stacku
+ * Funkcia vyhodi a uvolni symtable (blok) z vrchu stacku. symtable sa uvolni cez free_symtable
+ *  aj so vsetkymi polozkami, takze pointre zo stack_top,
+ * search_item a stack_search do tohto symtablu prestanu platit
  * @param stack z ktoreho chceme vrchny prvok vybrat
  * @return pointer na aktualizovany stack, (stary pointer na stack je ale tiez aktalny).
  */
@@ -139,10 +146,10 @@ symtable_stack_t *stack_pop(symtable_stack_t *stack);
  * @return pointer na item_t s dannym klucom, null ak kluc nenajde. Ak pouzivatel 
  *         spravi pop_stack tak pointer vrateny stack_search platit prestane
  */
-item_t *stack_search(symtable_stack_t *stack, symtable_key_t key);
+item_t *stack_search(symtable_stack_t *stack, const char *key);
 
 /**
- * Funkcia uvolni vsetko zo stacku
+ * Funkcia uvolni vsetko zo stacku, vratane vsetkych symtablov ktore su v nom
  * @param stack ktory chceme cely uvolnit
  */
 void free_stack(symtable_stack_t *stack);
