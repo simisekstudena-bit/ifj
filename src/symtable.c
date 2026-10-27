@@ -294,6 +294,13 @@ void free_symtable(symtable_t *symtable){
     for (int i = 0; i < symtable->capacity; i++) {
         if (symtable->items[i] == NULL) continue;
         free(symtable->items[i]->key);
+        item_t *item = symtable->items[i];
+        if (item->data.kind == SYMBOL_FUNCTION) {
+            for (int j = 0; j < item->data.func.param_count; j++) {
+                free(item->data.func.params[j].name);
+            }
+            free(item->data.func.params);
+        }
         free(symtable->items[i]);
     }
 
