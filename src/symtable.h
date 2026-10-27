@@ -29,20 +29,65 @@ typedef enum {
     TYPE_INT,
     TYPE_DOUBLE,
     TYPE_STRING,
-    TYPE_UNIT
+    TYPE_UNIT,
+    TYPE_ANY,     // typ pre parametre vstavanych funkcii
+    TYPE_UNKNOWN, // pri napr. funkciach bez navratoveho typu
 } symtable_data_type_t;
 
+/**
+ * Druh symbolu
+ */
+typedef enum {
+    SYMBOL_VARIABLE,
+    SYMBOL_PARAMETER,
+    SYMBOL_FUNCTION
+} symtable_kind_t;
+
+
+// parameter funkcie
+
 typedef struct {
-    symtable_data_type_t data_type;
-    bool function; 
-    bool variable;
-}symtable_data_t;
+    char *name;
+    symtable_data_type_t type;
+} symtable_param_t;
+
+
+// data pre premennu a parameter
+
+typedef struct {
+    bool is_modifiable; // var = true, val = false
+    int scope_id;    // cislo rozsahu pre generator
+} symtable_var_t;
+
+
+ // data pre funkciu
+
+typedef struct {
+    symtable_param_t *params; // dynamicke pole parametrov, plni sa cez add_parameter
+    int param_count;
+    int param_capacity;
+    bool return_explicit; // navratovy typ bol uvedeny
+    bool defined;         // funkcia bola definovana, nie iba zatial volana
+    bool is_main;         
+    bool builtin;         // vstavana funkcia
+    bool inferring;       // navratovy typ sa prave odvodzuje - volanie seba
+} symtable_func_t;
+
+typedef struct {
+    symtable_kind_t kind;
+    symtable_data_type_t data_type; // typ premennej/parametra, pri funkcii navratovy typ
+    union {
+        symtable_var_t var;   
+        symtable_func_t func; 
+    };
+} symtable_data_t;
 
 typedef struct symtable symtable_t;
 
 typedef struct block {
     symtable_t *symtable;
     struct block *parent;
+    int id; // kalkulacia zanorenia
 } block_t;
 
 typedef struct {
@@ -153,4 +198,17 @@ item_t *stack_search(symtable_stack_t *stack, const char *key);
  * @param stack ktory chceme cely uvolnit
  */
 void free_stack(symtable_stack_t *stack);
+
+/**
+ * Funkcia prida funkcii parameter na koniec zoznamu jej parametrov, meno sa skopiruje.
+ * Volat raz pre kazdy parameter v poradi ako su v definicii
+ * @param item polozka funkcie z tabulky alebo search_item
+ * @param name meno parametra
+ * @param type typ parametra
+ * @return SYMTABLE_OK
+ *         SYMTABLE_ERR_EXISTS ak funkcia uz ma parameter s takym menom (chyba 4)
+ *         SYMTABLE_ERR_ARGUMENT ak je itemalebo name NULL alebo item nie je funkcia
+ *         SYMTABLE_ERR_ALLOC pri chybe alokacie
+ */
+symtable_status_t add_parameter(item_t *item, const char *name, symtable_data_type_t type);
 #endif

@@ -11,12 +11,17 @@ File obsahuje source code tabulky symbolov
 
 // horna hranica kapacity aby nepretiekol int
 #define SYMTABLE_MAX_CAPACITY (1000000)
+static int block_counter = 0;
 
 struct symtable {
     item_t **items;
     int capacity;
     int count;
 };
+
+//////////////////////////////////
+// funkcie na pracu nad stackom
+//////////////////////////////////
 
 bool stack_is_empty(symtable_stack_t *stack) {
     return stack == NULL || stack->top == NULL;
@@ -44,6 +49,8 @@ symtable_status_t stack_push(symtable_stack_t *stack, symtable_t *symtable){
     block->parent = stack->top;
     stack->top = block;
     stack->size++;
+    block_counter++;
+    block->id = block_counter;
     return SYMTABLE_OK;
 }
 
@@ -75,6 +82,51 @@ void free_stack(symtable_stack_t *stack) {
     }
     free(stack);
 }
+
+
+//////////////////////////////
+// funkcie na update hodnot
+/////////////////////////////
+
+symtable_status_t add_parameter(item_t *item, const char *name, symtable_data_type_t type) {
+    if (item == NULL || name == NULL) return SYMTABLE_ERR_ARGUMENT;
+    if (item->data.kind != SYMBOL_FUNCTION) return SYMTABLE_ERR_ARGUMENT;
+    symtable_func_t *func = &item->data.func;
+
+    for (int i = 0; i < func->param_count; i++) {
+        if (strcmp(func->params[i].name, name) == 0) return SYMTABLE_ERR_EXISTS;
+    }
+
+    // ked je pole plne zdvojnasobim ho
+    // pri chybe alokacie tak stare pole ostane platne
+    if (func->param_count == func->param_capacity) {
+        int new_capacity;
+        if (func->param_capacity == 0) {
+            new_capacity = 4;
+        } else {
+            new_capacity = func->param_capacity * 2;
+        }
+        symtable_param_t *new_params = realloc(func->params, new_capacity * sizeof(symtable_param_t));
+        if (new_params == NULL) return SYMTABLE_ERR_ALLOC;
+        func->params = new_params;
+        func->param_capacity = new_capacity;
+    }
+
+    size_t len = strlen(name) + 1;
+    char *name_copy = malloc(len);
+    if (name_copy == NULL) return SYMTABLE_ERR_ALLOC;
+    memcpy(name_copy, name, len);
+
+    func->params[func->param_count].name = name_copy;
+    func->params[func->param_count].type = type;
+    func->param_count++;
+
+    return SYMTABLE_OK;
+}
+
+////////////////////////////////////////////////////
+// pomocne funkcie na kalkulaciu velkosti tabulky
+///////////////////////////////////////////////////
 
 /**
  * Mapovacia funkcia BKDR, vypocita hash z retazca kluca
@@ -127,6 +179,10 @@ static int next_prime(int n){
 
     return n;
 }
+
+///////////////////////////////////////////
+// Funkcie s operaciami nad tabulkou
+//////////////////////////////////////////
 
 symtable_t *create_table(int size){
     if (size <= 0 || size > SYMTABLE_MAX_CAPACITY) return NULL;
