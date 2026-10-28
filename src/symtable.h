@@ -56,7 +56,7 @@ typedef struct {
 
 typedef struct {
     bool is_modifiable; // var = true, val = false
-    int scope_id;    // cislo rozsahu pre generator
+    int scope_id;    // jedinecne cislo rozsahu pre generator
 } symtable_var_t;
 
 
@@ -83,25 +83,7 @@ typedef struct {
 } symtable_data_t;
 
 typedef struct symtable symtable_t;
-
-typedef struct block {
-    symtable_t *symtable;
-    struct block *parent;
-    int id; // kalkulacia zanorenia
-} block_t;
-
-typedef struct {
-    int size;
-    block_t *top;
-} symtable_stack_t;
-
-
-typedef char *symtable_key_t;
-
-typedef struct {
-    symtable_data_t data;
-    symtable_key_t key;
-} item_t;
+typedef struct symtable_stack symtable_stack_t;
 
 /**
  * Funkcia vytvori prazdnu tabulku symbolov
@@ -128,7 +110,7 @@ void free_symtable(symtable_t *symtable);
  * @param data informacie o vkladanom symbole
  * 
  * @return stavy z symtable_status_t o tom ci presiel zapis.
- *         insert vie taktiez nafukovat pole, pointre na item_t vratene skor ale ostavaju platne
+ *         insert vie taktiez nafukovat pole, pointre vratene zo search_item ale ostavaju platne
  */
 symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_data_t data);
 
@@ -138,9 +120,9 @@ symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_dat
  * @param symtable tabulka symbolov v ktorej chceme prvok hladat
  * @param key nazov ktory chceme v tabulke vyhladat
  * 
- * @return item ktory ma takyto key, ak neexistuje/nenasli sme vrati NULL 
+ * @return data itemu s tymto klucom NULL ak neexistuje
  */
-item_t *search_item(symtable_t *symtable, const char *key);
+symtable_data_t *search_item(symtable_t *symtable, const char *key);
 
 /**
  * Funkcia inicializuje prazdny stack
@@ -180,18 +162,17 @@ symtable_status_t stack_push(symtable_stack_t *stack, symtable_t *symtable);
  *  aj so vsetkymi polozkami, takze pointre zo stack_top,
  * search_item a stack_search do tohto symtablu prestanu platit
  * @param stack z ktoreho chceme vrchny prvok vybrat
- * @return pointer na aktualizovany stack, (stary pointer na stack je ale tiez aktalny).
  */
-symtable_stack_t *stack_pop(symtable_stack_t *stack);
+void stack_pop(symtable_stack_t *stack);
 
 /**
  * Funkcia prehlada vsetky symtables v stacku pre dany key
  * @param stack stack v ktorom chceme prvok najst
  * @param key kluc ktory hladam
- * @return pointer na item_t s dannym klucom, null ak kluc nenajde. Ak pouzivatel 
- *         spravi pop_stack tak pointer vrateny stack_search platit prestane
+ * @return pointer na data_t s dannym klucom, null ak kluc nenajde. Ak pouzivatel
+ *         spravi stack_pop tak pointer vrateny stack_search platit prestane
  */
-item_t *stack_search(symtable_stack_t *stack, const char *key);
+symtable_data_t *stack_search(symtable_stack_t *stack, const char *key);
 
 /**
  * Funkcia uvolni vsetko zo stacku, vratane vsetkych symtablov ktore su v nom
@@ -202,13 +183,20 @@ void free_stack(symtable_stack_t *stack);
 /**
  * Funkcia prida funkcii parameter na koniec zoznamu jej parametrov, meno sa skopiruje.
  * Volat raz pre kazdy parameter v poradi ako su v definicii
- * @param item polozka funkcie z tabulky alebo search_item
+ * @param data data funkcie zo search search_item
  * @param name meno parametra
  * @param type typ parametra
  * @return SYMTABLE_OK
  *         SYMTABLE_ERR_EXISTS ak funkcia uz ma parameter s takym menom (chyba 4)
- *         SYMTABLE_ERR_ARGUMENT ak je itemalebo name NULL alebo item nie je funkcia
+ *         SYMTABLE_ERR_ARGUMENT ak je data alebo name NULL, alebo data nie je funkcia
  *         SYMTABLE_ERR_ALLOC pri chybe alokacie
  */
-symtable_status_t add_parameter(item_t *item, const char *name, symtable_data_type_t type);
+symtable_status_t add_parameter(symtable_data_t *data, const char *name, symtable_data_type_t type);
+
+/**
+ * Funkcia ktora volatelovi najde id vrchneho itemu/bloku
+ * @param stack na ktorom chceme id najst
+ * @return jedinecne cislo rozsahu na vrchu itemu/bloku, -1 ak je symtable NULL a aj pri prazdnom zasobniku
+ */
+int stack_scope_id(symtable_stack_t *stack);
 #endif

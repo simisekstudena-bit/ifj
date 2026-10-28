@@ -13,6 +13,21 @@ File obsahuje source code tabulky symbolov
 #define SYMTABLE_MAX_CAPACITY (1000000)
 static int block_counter = 0;
 
+typedef struct{
+    symtable_data_t data;
+    char *key;
+}item_t;
+
+typedef struct block {
+    symtable_t *symtable;
+    struct block *parent;
+    int id; // jedinecne cislo rozsahu
+} block_t;
+
+struct symtable_stack{
+    block_t *top;
+};
+
 struct symtable {
     item_t **items;
     int capacity;
@@ -31,7 +46,6 @@ symtable_stack_t *init_stack(void){
     symtable_stack_t *stack = malloc(sizeof(symtable_stack_t));
     if (stack == NULL) return NULL;
     stack->top = NULL;
-    stack->size = 0;
     return stack;
 }
 
@@ -48,31 +62,33 @@ symtable_status_t stack_push(symtable_stack_t *stack, symtable_t *symtable){
     block->symtable = symtable;
     block->parent = stack->top;
     stack->top = block;
-    stack->size++;
     block_counter++;
     block->id = block_counter;
     return SYMTABLE_OK;
 }
 
-symtable_stack_t *stack_pop(symtable_stack_t *stack) {
-    if (stack_is_empty(stack)) return stack;
+void stack_pop(symtable_stack_t *stack) {
+    if (stack_is_empty(stack)) return;
     block_t *top_block = stack->top;
     stack->top = top_block->parent;
-    stack->size--;
     
     free_symtable(top_block->symtable);
     free(top_block);
-    return stack;
 }
 
-item_t *stack_search(symtable_stack_t *stack, const char *key) {
+symtable_data_t *stack_search(symtable_stack_t *stack, const char *key) {
     if (stack_is_empty(stack)) return NULL;
 
     for (block_t *current_block = stack->top; current_block != NULL; current_block = current_block->parent) {
-        item_t *item = search_item(current_block->symtable, key);
-        if (item != NULL) return item;
+        symtable_data_t *data = search_item(current_block->symtable, key);
+        if (data != NULL) return data;
     }
     return NULL;
+}
+
+int stack_scope_id(symtable_stack_t *stack) {
+    if (stack == NULL || stack->top == NULL) return -1;
+    return stack->top->id;
 }
 
 void free_stack(symtable_stack_t *stack) {
@@ -88,10 +104,10 @@ void free_stack(symtable_stack_t *stack) {
 // funkcie na update hodnot
 /////////////////////////////
 
-symtable_status_t add_parameter(item_t *item, const char *name, symtable_data_type_t type) {
-    if (item == NULL || name == NULL) return SYMTABLE_ERR_ARGUMENT;
-    if (item->data.kind != SYMBOL_FUNCTION) return SYMTABLE_ERR_ARGUMENT;
-    symtable_func_t *func = &item->data.func;
+symtable_status_t add_parameter(symtable_data_t *data, const char *name, symtable_data_type_t type) {
+    if (data == NULL || name == NULL) return SYMTABLE_ERR_ARGUMENT;
+    if (data->kind != SYMBOL_FUNCTION) return SYMTABLE_ERR_ARGUMENT;
+    symtable_func_t *func = &data->func;
 
     for (int i = 0; i < func->param_count; i++) {
         if (strcmp(func->params[i].name, name) == 0) return SYMTABLE_ERR_EXISTS;
@@ -272,7 +288,7 @@ symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_dat
     return SYMTABLE_ERR_FULL; 
 }
 
-item_t *search_item(symtable_t *symtable, const char *key) {
+symtable_data_t *search_item(symtable_t *symtable, const char *key) {
     if ((symtable == NULL)||(key == NULL)) return NULL;
     unsigned int index = hash_bkdr(key) % symtable->capacity;
 
@@ -281,7 +297,7 @@ item_t *search_item(symtable_t *symtable, const char *key) {
 
         if (item == NULL) return NULL;
 
-        if (strcmp(item->key, key) == 0) return item;
+        if (strcmp(item->key, key) == 0) return &item->data;
 
         index = (index + 1) % symtable->capacity;
     }
