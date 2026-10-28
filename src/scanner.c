@@ -66,7 +66,7 @@ Token get_token(FILE *source_file){
     switch (state){
 
         case STATE_LINE_START:
-
+           
            
             if (c == EOF){
                 if (indent_top > 0) {
@@ -109,10 +109,12 @@ Token get_token(FILE *source_file){
                 }
                 else if (next == '*') {
                     //blokovy komentar aj s vnorenymi 
+                    comment_has_newline = false;
                     int depth = 1;
                     int prev = 0;
                     while (depth > 0) {
                         c = fgetc(source_file);
+                        if (c == '\n') comment_has_newline = true;
                         if (c == EOF) {
                             fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
                             exit(1);
@@ -138,8 +140,14 @@ Token get_token(FILE *source_file){
 
                     //riadok obsahuje len komentar = skip
                     if (c == '\n' || c == EOF) {
+                        comment_has_newline = false;
                         space_count = 0;
                         continue;
+                    }
+
+                    if (comment_has_newline) {
+                        fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
+                        exit(1);
                     }
                     
                 }
