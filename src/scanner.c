@@ -21,7 +21,7 @@ Keyword keywords[] = {
 
 static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
-
+static bool comment_has_newline = false;
 
 
 //odsadenia 
@@ -186,14 +186,21 @@ Token get_token(FILE *source_file){
         case STATE_START:
             
             if (c == ' ' || c == '\t')break;
-             
+            
+
+            if (comment_has_newline && c != '\n' && c != '\r' && c != EOF) {
+                fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
+                exit(1);
+            }
             else if (c == '\n' || c == '\r') {
+                comment_has_newline = false;
                 Ttoken.Ttype = TOKEN_EOL;
                 state = STATE_LINE_START;
                 return Ttoken;
             }
 
             else if (c == EOF) {
+                comment_has_newline = false;
                 Ttoken.Ttype = TOKEN_EOF;
                 return Ttoken;
             }
@@ -579,7 +586,9 @@ Token get_token(FILE *source_file){
             break;
             
         case STATE_BLOCK_COMMENT:
-            if (c == '/') {
+            if (c == '\n') comment_has_newline = true;
+
+            else if (c == '/') {
                 state = STATE_BLOCK_COMMENT_SLASH;
             }
             else if (c == '*') {
@@ -592,7 +601,9 @@ Token get_token(FILE *source_file){
             break;
 
         case STATE_BLOCK_COMMENT_SLASH:
-            if (c == '*') {
+            if (c == '\n') comment_has_newline = true;
+
+            else if (c == '*') {
                 comment_depth++;
                 state = STATE_BLOCK_COMMENT;
             }
@@ -609,11 +620,14 @@ Token get_token(FILE *source_file){
             break;
 
         case STATE_BLOCK_COMMENT_STAR:
-            if (c == '/') {
+            if (c == '\n') comment_has_newline = true;
+
+            else if (c == '/') {
                 comment_depth--;
                 if (comment_depth == 0) {
                     state = STATE_START;
                 }
+                
                 else {
                     state = STATE_BLOCK_COMMENT;
                 }
