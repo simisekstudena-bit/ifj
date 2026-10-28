@@ -28,6 +28,16 @@ static bool comment_has_newline = false;
 static int indent_stack[100] = {0};
 static int indent_top = 0;  
 
+void buf_add(char *buffer, int *length, int c) {
+    if (*length + 1 > 255) {
+        fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
+        exit(1);
+    }
+    buffer[(*length)++] = (char)c;
+    buffer[*length] = '\0';
+}
+
+
 void free_token(Token *t) {
     if ((t->Ttype == TOKEN_LITERAL_STRING || t->Ttype == TOKEN_IDENTIFIER) && t->Tatribut.string != NULL) {
         free(t->Tatribut.string);
@@ -162,6 +172,10 @@ Token get_token(FILE *source_file){
 
             //ident 
             if (space_count > indent_stack[indent_top]) {
+                 if (indent_top + 1 >= 100) {
+                    fprintf(stderr, "Interna chyba kompilatora: prilis vela urovni odsadenia\n");
+                    exit(99);
+                }
                 indent_stack[++indent_top] = space_count;
                 Ttoken.Ttype = TOKEN_INDENT;
                 Ttoken.Tatribut.in = space_count;
@@ -317,6 +331,13 @@ Token get_token(FILE *source_file){
             break;
         }
         ungetc(c, source_file);
+
+        if (length == 1 && str[0] == '_') {
+            free(str);
+            fprintf(stderr, "Lexikalna chyba 1: samotne _ nie je identifikator\n");
+            exit(1);
+        }
+
         Ttoken.Ttype = lookup_keyword(str);
         if (Ttoken.Ttype == TOKEN_IDENTIFIER) {
             Ttoken.Tatribut.string = str;
@@ -334,8 +355,7 @@ Token get_token(FILE *source_file){
         case STATE_NUMBER:
         
             if (c == '.') {
-                 buffer[length++] = c;
-                buffer[length] = '\0';
+                 buf_add(buffer, &length, c);
                 state = STATE_DOUBLE;
                 break;
             }
@@ -349,8 +369,8 @@ Token get_token(FILE *source_file){
                     exit(1);
                     break;   
                 }
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
+                
                 break;
             }
             else if (c == '_') {
@@ -358,8 +378,7 @@ Token get_token(FILE *source_file){
                 break;                           
             }
             else if (c == 'e' || c == 'E') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP;
                 break;
             }
@@ -386,8 +405,7 @@ Token get_token(FILE *source_file){
                     fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
                     exit(1);
                 }   
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_NUMBER;
                 break;
             }else{
@@ -449,8 +467,7 @@ Token get_token(FILE *source_file){
 
         case STATE_DOUBLE:                       
             if (c >= '0' && c <= '9') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_DOUBLE_DIGITS;
                 break;
             }
@@ -459,8 +476,7 @@ Token get_token(FILE *source_file){
 
         case STATE_DOUBLE_DIGITS:                
             if (c >= '0' && c <= '9') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 break;
             }
             if (c == '_') {
@@ -468,8 +484,7 @@ Token get_token(FILE *source_file){
              break;
             }
             if (c == 'e' || c == 'E') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP;
                 break;
             }
@@ -493,8 +508,7 @@ Token get_token(FILE *source_file){
                     fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
                     exit(1);
                 }
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_DOUBLE_DIGITS;
                 break;
             }
@@ -503,14 +517,12 @@ Token get_token(FILE *source_file){
 
         case STATE_EXP:                          
             if (c == '+' || c == '-') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP_SIGN;
                 break;
             }
             if (c >= '0' && c <= '9') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP_DIGITS;
                 break;
             }
@@ -519,8 +531,7 @@ Token get_token(FILE *source_file){
 
         case STATE_EXP_SIGN:               
             if (c >= '0' && c <= '9') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP_DIGITS;
                 break;
             }
@@ -529,8 +540,7 @@ Token get_token(FILE *source_file){
 
         case STATE_EXP_DIGITS:                  
             if (c >= '0' && c <= '9') {
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 break;
             }
             if (c == '_') {
@@ -558,8 +568,7 @@ Token get_token(FILE *source_file){
                     fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
                     exit(1);
                 }
-                buffer[length++] = c;
-                buffer[length] = '\0';
+                buf_add(buffer, &length, c);
                 state = STATE_EXP_DIGITS;
                 break;
             }
@@ -594,7 +603,10 @@ Token get_token(FILE *source_file){
             break;
             
         case STATE_BLOCK_COMMENT:
-            if (c == '\n') comment_has_newline = true;
+            if (c == '\n') {
+                comment_has_newline = true;
+                state = STATE_BLOCK_COMMENT;
+            }
 
             else if (c == '/') {
                 state = STATE_BLOCK_COMMENT_SLASH;
@@ -609,7 +621,10 @@ Token get_token(FILE *source_file){
             break;
 
         case STATE_BLOCK_COMMENT_SLASH:
-            if (c == '\n') comment_has_newline = true;
+             if (c == '\n') {
+                comment_has_newline = true;
+                state = STATE_BLOCK_COMMENT;
+            }
 
             else if (c == '*') {
                 comment_depth++;
@@ -628,7 +643,10 @@ Token get_token(FILE *source_file){
             break;
 
         case STATE_BLOCK_COMMENT_STAR:
-            if (c == '\n') comment_has_newline = true;
+            if (c == '\n') {
+                comment_has_newline = true;
+                state = STATE_BLOCK_COMMENT;
+            }
 
             else if (c == '/') {
                 comment_depth--;
