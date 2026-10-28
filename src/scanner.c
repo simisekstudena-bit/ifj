@@ -100,18 +100,56 @@ Token get_token(FILE *source_file){
             else{
                 if (c == '/') {
                 int next = fgetc(source_file);
+                //riadkovy komentar
                 if (next == '/') {
-                    //riadok je komentar ignorovany cely riadok 
+                     
                     while ((c = fgetc(source_file)) != '\n' && c != EOF);
                     space_count = 0;
-                   
                     continue;
                 }
-               
-                 ungetc(next, source_file);
+                else if (next == '*') {
+                    //blokovy komentar aj s vnorenymi 
+                    int depth = 1;
+                    int prev = 0;
+                    while (depth > 0) {
+                        c = fgetc(source_file);
+                        if (c == EOF) {
+                            fprintf(stderr, "Lexikalna chyba 1: neukonceny blokovy komentar\n");
+                            exit(1);
+                        }
+
+                        if (prev == '/' && c == '*'){
+                         depth++; 
+                         prev = 0; 
+                        }
+
+                        else if (prev == '*' && c == '/'){
+                         depth--; 
+                         prev = 0; 
+                        }
+
+                        else prev = c;
+                    }
+
+                    // medzery za komentarom 
+                    do {
+                        c = fgetc(source_file);
+                    } while (c == ' ');
+
+                    //riadok obsahuje len komentar = skip
+                    if (c == '\n' || c == EOF) {
+                        space_count = 0;
+                        continue;
+                    }
+                    
+                }
+                else {
+                    ungetc(next, source_file);
+                }
             }
-            
             ungetc(c, source_file);
+            
+            
 
 
             //ident 
@@ -291,7 +329,11 @@ Token get_token(FILE *source_file){
                     fprintf(stderr, "Lexikalna chyba 1: cislo nesmie zacinat nulou\n");
                     exit(1);
                 }
-                if ((length + 1) > 255) break;   // todo chyba pri pretečení
+                if ((length + 1) > 255) {
+                fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
+                    exit(1);
+                    break;   
+                }
                 buffer[length++] = c;
                 buffer[length] = '\0';
                 break;
