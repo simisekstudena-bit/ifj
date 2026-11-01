@@ -8,10 +8,13 @@ SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:.c=.o)
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: build clean check build-check
+.PHONY: all build clean check build-check
 
 
 build: $(TARGET)
+
+all: build
+
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@
 
