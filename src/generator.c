@@ -20,15 +20,17 @@ typedef struct list {
     node_t *last; // keeping last so we can append fast - O(1)
 } list_t;
 
+static list_t code;
+
 // Initializes linked list
-void list_init(list_t *l) {
+static void list_init(list_t *l) {
     l->first = NULL;
     l->last = NULL;
 }
 
 // Inserts element to the end of the list
 // Allocates space for node and instruction (string)
-void list_append(list_t *l, const char *text) {
+static void list_append(list_t *l, const char *text) {
     node_t *new_node = malloc(sizeof(node_t));
 
     if (new_node == NULL) {
@@ -46,17 +48,18 @@ void list_append(list_t *l, const char *text) {
     new_node->instruction = instruction;
     new_node->next = NULL;
 
+    // No elements
     if (l->first == NULL) {
         l->first = new_node;
         l->last = new_node;
-    } else {
+    } else { // One or more elements
         l->last->next = new_node;
         l->last = new_node;
     }
 }
 
 // Frees every node and its string
-void list_free(list_t *l) {
+static void list_free(list_t *l) {
     while (l->first != NULL) {
         node_t *current = l->first;
         l->first = l->first->next;
@@ -66,18 +69,20 @@ void list_free(list_t *l) {
     l->last = NULL;
 }
 
-/* TODO:
-    - implement functions for generator
-*/
-
 void gen_init(void) {
-
+    list_init(&code);
+    list_append(&code, ".IFJcode26");
 }
 
 void gen_print(FILE *out) {
-    (void)out;
+    node_t *current = code.first;
+
+    while (current != NULL) {
+        fprintf(out, "%s\n", current->instruction);
+        current = current->next;
+    }
 }
 
 void gen_free(void) {
-
+    list_free(&code);
 }
