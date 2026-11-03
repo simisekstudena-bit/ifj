@@ -2,7 +2,6 @@
 #define PARSER_H
 
 #include <stdio.h>
-#include "scanner.h"
 #include "ast.h"
 
 ASTNode* parse_program(FILE *source_file);
