@@ -6,6 +6,7 @@ Author: Patrik Kadleček xkadlep01
 
 #include "generator.h"
 #include <string.h>
+#include <stdarg.h>
 
 // Struct for keeping instructions
 // One node == one instruction
@@ -69,9 +70,42 @@ static void list_free(list_t *l) {
     l->last = NULL;
 }
 
+// Formats instruction before appending to the code list
+// ("PUSHS int@%d", 42) ==> PUSHS int@42
+static void add_instruction(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    va_list args2;
+    va_copy(args2, args);
+
+    // Measures length
+    int len = vsnprintf(NULL, 0, format, args);
+    if (len < 0) {
+        fprintf(stderr, "Failed to load instruction length\n");
+        exit(99);
+    }
+
+    // Creates a buffer for instruction
+    char *buf = malloc(len + 1);
+    if (buf == NULL) {
+        fprintf(stderr, "Failed to allocate memory\n");
+        exit(99);
+    }
+
+    // Writes formatted string into buffer
+    vsnprintf(buf, len + 1, format, args2);
+
+    va_end(args2);
+    va_end(args);
+
+    list_append(&code, buf);
+    free(buf);
+}
+
 void gen_init(void) {
     list_init(&code);
-    list_append(&code, ".IFJcode26");
+    add_instruction(".IFJcode26");
 }
 
 void gen_print(FILE *out) {
