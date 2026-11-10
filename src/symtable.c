@@ -6,6 +6,7 @@ File obsahuje source code tabulky symbolov
 */
 
 #include "symtable.h"
+#include "types.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -104,7 +105,7 @@ void free_stack(symtable_stack_t *stack) {
 // funkcie na update hodnot
 /////////////////////////////
 
-symtable_status_t add_parameter(symtable_data_t *data, const char *name, symtable_data_type_t type) {
+symtable_status_t add_parameter(symtable_data_t *data, const char *name, DataType type) {
     if (data == NULL || name == NULL) return SYMTABLE_ERR_ARGUMENT;
     if (data->kind != SYMBOL_FUNCTION) return SYMTABLE_ERR_ARGUMENT;
     symtable_func_t *func = &data->func;

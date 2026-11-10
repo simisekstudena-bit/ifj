@@ -9,6 +9,7 @@ File obsahuje rozhranie tabulky symbolov
 #define SYMTABLE_H
 
 #include <stdbool.h>
+#include "types.h"
 
 /**
  * Navratove stavy tabulky symbolov. 
@@ -25,15 +26,6 @@ typedef enum{
     SYMTABLE_ERR_ARGUMENT, // NULL
 } symtable_status_t;
 
-typedef enum {
-    TYPE_INT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_UNIT,
-    TYPE_ANY,     // typ pre parametre vstavanych funkcii
-    TYPE_UNKNOWN, // pri napr. funkciach bez navratoveho typu
-} symtable_data_type_t;
-
 /**
  * Druh symbolu
  */
@@ -48,7 +40,7 @@ typedef enum {
 
 typedef struct {
     char *name;
-    symtable_data_type_t type;
+    DataType type;
 } symtable_param_t;
 
 
@@ -75,7 +67,7 @@ typedef struct {
 
 typedef struct {
     symtable_kind_t kind;
-    symtable_data_type_t data_type; // typ premennej/parametra, pri funkcii navratovy typ
+    DataType data_type; // typ premennej/parametra, pri funkcii navratovy typ
     union {
         symtable_var_t var;   
         symtable_func_t func; 
@@ -191,7 +183,7 @@ void free_stack(symtable_stack_t *stack);
  *         SYMTABLE_ERR_ARGUMENT ak je data alebo name NULL, alebo data nie je funkcia
  *         SYMTABLE_ERR_ALLOC pri chybe alokacie
  */
-symtable_status_t add_parameter(symtable_data_t *data, const char *name, symtable_data_type_t type);
+symtable_status_t add_parameter(symtable_data_t *data, const char *name, DataType type);
 
 /**
  * Funkcia ktora volatelovi najde id vrchneho itemu/bloku
