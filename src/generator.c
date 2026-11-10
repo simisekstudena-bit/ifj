@@ -30,23 +30,17 @@ static void list_init(list_t *l) {
 }
 
 // Inserts element to the end of the list
-// Allocates space for node and instruction (string)
-static void list_append(list_t *l, const char *text) {
+// Allocates space for node and gets ownership of formatted instruction
+static void list_append(list_t *l, char *text) {
     node_t *new_node = malloc(sizeof(node_t));
 
     if (new_node == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
+        free(text);
         exit(99);
     }
-
-    char *instruction = malloc(strlen(text) + 1);
-    if (instruction == NULL) {
-        fprintf(stderr, "Failed to allocate memory\n");
-        free(new_node);
-        exit(99);
-    }
-    strcpy(instruction, text);
-    new_node->instruction = instruction;
+    // Takes ownership of instruction
+    new_node->instruction = text;
     new_node->next = NULL;
 
     // No elements
@@ -100,7 +94,6 @@ static void add_instruction(const char *format, ...) {
     va_end(args);
 
     list_append(&code, buf);
-    free(buf);
 }
 
 void gen_init(void) {
