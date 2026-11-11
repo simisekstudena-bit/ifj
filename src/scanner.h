@@ -34,6 +34,8 @@ typedef enum {
     STATE_STRING,
     STATE_MULTILINE_STRING,
     STATE_MULTILINE_QUOTES,
+    STATE_DOT,\
+    STATE_PAREN_LINE_START,
     STATE_STRING_ESCAPE
 } ScannerState;
 
@@ -82,7 +84,10 @@ typedef enum {
     TOKEN_RPAREN,           // )
     TOKEN_COLON,            // :
     TOKEN_COMMA,            // ,
-    TOKEN_SEMICOLON         // ;
+    TOKEN_SEMICOLON,        // ;
+    TOKEN_DOT,              // .
+    TOKEN_AT_MAIN           // @main
+
 } TokenType;
 
 typedef union{
@@ -116,6 +121,7 @@ Token get_token(FILE *source_file);
 void free_token(Token *t);
 
 TokenType lookup_keyword(char *str);
+
 
   #endif
 

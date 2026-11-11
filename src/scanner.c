@@ -18,11 +18,11 @@ Keyword keywords[] = {
     {"Unit", TOKEN_KW_UNIT},
 };
 
-
+static int paren_depth = 0;
 static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
 static bool comment_has_newline = false;
-
+static int space_count = 0;
 
 //odsadenia 
 static int indent_stack[100] = {0};
@@ -62,7 +62,7 @@ Token get_token(FILE *source_file){
     char buffer[256];
     int length = 0;
     int quotes = 0;
-    int space_count = 0;
+    bool at_sign = false;
 
     int cap = 0;
     char *str = NULL;
@@ -209,23 +209,58 @@ Token get_token(FILE *source_file){
             
             if (c == ' ' || c == '\t')break;
             
-
-            if (comment_has_newline && c != '\n' && c != '\r' && c != EOF) {
+            if (paren_depth == 0 && comment_has_newline && c != '\n' && c != '\r' && c != EOF)  {
                 fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
                 exit(1);
             }
             else if (c == '\n' || c == '\r') {
+                if (paren_depth > 0) {
+                    comment_has_newline = false;
+                    state = STATE_PAREN_LINE_START;
+                    break;
+                }
+                                    
+                comment_has_newline = false;
+                Ttoken.Ttype = TOKEN_EOL;
+                state = STATE_LINE_START;
+                return Ttoken;
+            }
+            else if (c == EOF) {
                 comment_has_newline = false;
                 Ttoken.Ttype = TOKEN_EOL;
                 state = STATE_LINE_START;
                 return Ttoken;
             }
 
-            else if (c == EOF) {
-                comment_has_newline = false;
-                Ttoken.Ttype = TOKEN_EOF;
-                return Ttoken;
+
+            else if (c == '@') {
+                c = fgetc(source_file);
+                if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) {
+                    fprintf(stderr, "Lexikalna chyba 1: za @ musi nasledovat main\n");
+                    exit(1);
+                }
+                at_sign = true;
+                cap = 16;
+                str = malloc(cap);
+                if (str == NULL) {
+                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                    exit(99);
+                }
+                str[0] = (char)c;
+                str[1] = '\0';
+                length = 1;
+                state = STATE_IDENTIFIER;
+                break;
             }
+            
+            else if (c == '.') {
+                buffer[0] = '.';
+                length = 1;
+                buffer[length] = '\0';
+                state = STATE_DOT;
+                break;
+            }
+
             else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
             
             cap = 16;
@@ -261,11 +296,18 @@ Token get_token(FILE *source_file){
                 Ttoken.Ttype = TOKEN_MUL;
                 return Ttoken;
             }
-            else if (c == '(') {
+             else if (c == '(') {
+                paren_depth++;
                 Ttoken.Ttype = TOKEN_LPAREN;
                 return Ttoken;
             }
             else if (c == ')') {
+                if (paren_depth > 0) {
+                    paren_depth--;
+                }
+                if (paren_depth == 0) {
+                    comment_has_newline = false;
+                }
                 Ttoken.Ttype = TOKEN_RPAREN;
                 return Ttoken;
             }
@@ -314,43 +356,61 @@ Token get_token(FILE *source_file){
 
         
         case STATE_IDENTIFIER:
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9')) {
-            if (length + 2 > cap) {
-                int newcap = cap > 0 ? cap * 2 : 16;
-                char *tmp = realloc(str, newcap);
-                if (tmp == NULL) {
-                    free(str);
-                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
-                    exit(99);
+
+            
+
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9')) {
+                if (length + 2 > cap) {
+                    int newcap = cap > 0 ? cap * 2 : 16;
+                    char *tmp = realloc(str, newcap);
+                    if (tmp == NULL) {
+                        free(str);
+                        fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                        exit(99);
+                    }
+                    str = tmp;
+                    cap = newcap;
                 }
-                str = tmp;
-                cap = newcap;
+                str[length++] = (char)c;
+                str[length] = '\0';
+                break;
             }
-            str[length++] = (char)c;
-            str[length] = '\0';
-            break;
-        }
-        ungetc(c, source_file);
+            ungetc(c, source_file);
+            if (at_sign) {
+                if (strcmp(str, "main") != 0) {
+                    free(str);
+                    fprintf(stderr, "Lexikalna chyba 1: za @ musi nasledovat main\n");
+                    exit(1);
+                }
+                free(str);
+                str = NULL;
+                cap = 0;
+                length = 0;
+                Ttoken.Ttype = TOKEN_AT_MAIN;
+                state = STATE_START;
+                return Ttoken;
+            }
 
-        if (length == 1 && str[0] == '_') {
-            free(str);
-            fprintf(stderr, "Lexikalna chyba 1: samotne _ nie je identifikator\n");
-            exit(1);
-        }
+            if (length == 1 && str[0] == '_') {
+                free(str);
+                fprintf(stderr, "Lexikalna chyba 1: samotne _ nie je identifikator\n");
+                exit(1);
+            }
 
-        Ttoken.Ttype = lookup_keyword(str);
-        if (Ttoken.Ttype == TOKEN_IDENTIFIER) {
-            Ttoken.Tatribut.string = str;
+            Ttoken.Ttype = lookup_keyword(str);
+            if (Ttoken.Ttype == TOKEN_IDENTIFIER) {
+                Ttoken.Tatribut.string = str;
+                str = NULL;
+            }
+            else {
+                free(str);
+            }
             str = NULL;
-        }
-        else {
-            free(str);
-        }
-        str = NULL;
-        cap = 0;
-        length = 0;
-        state = STATE_START;
-        return Ttoken;
+            cap = 0;
+            length = 0;
+            state = STATE_START;
+            return Ttoken;
+            
 
         case STATE_NUMBER:
         
@@ -877,6 +937,46 @@ Token get_token(FILE *source_file){
                 state = STATE_STRING;
                 break;
             }
+            case STATE_DOT:
+                if (c >= '0' && c <= '9') {
+                    buf_add(buffer, &length, c);
+                    state = STATE_DOUBLE_DIGITS;
+                    break;
+                }
+                ungetc(c, source_file);
+                length = 0;
+                Ttoken.Ttype = TOKEN_DOT;
+                state = STATE_START;
+                return Ttoken;
+
+
+            case STATE_PAREN_LINE_START:
+
+            if (c == ' ') {
+                space_count++;
+                break;
+            }
+            if (c == '\n' || c == '\r') {
+                space_count = 0;
+                break;
+            }
+            if (c == '\t') {
+                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
+                exit(1);
+            }
+            if (c == EOF) {
+                space_count = 0;
+                state = STATE_START;
+                break;
+            }
+            ungetc(c, source_file);
+            if (c != ')' && space_count <= indent_stack[indent_top]) {
+                fprintf(stderr, "Syntakticka chyba 2: pokracovaci riadok v zatvorkach musi byt odsadeny viac\n");
+                exit(2);
+            }
+            space_count = 0;
+            state = STATE_START;
+            break;
 
 
         default:
