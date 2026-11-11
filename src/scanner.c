@@ -16,6 +16,7 @@ Keyword keywords[] = {
     {"Double", TOKEN_KW_DOUBLE},
     {"String", TOKEN_KW_STRING},
     {"Unit", TOKEN_KW_UNIT},
+    {"ifj26",TOKEN_IFJ26},
 };
 
 static int paren_depth = 0;

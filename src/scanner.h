@@ -86,7 +86,8 @@ typedef enum {
     TOKEN_COMMA,            // ,
     TOKEN_SEMICOLON,        // ;
     TOKEN_DOT,              // .
-    TOKEN_AT_MAIN           // @main
+    TOKEN_AT_MAIN,          // @main
+    TOKEN_IFJ26             // ifj26
 
 } TokenType;
 
