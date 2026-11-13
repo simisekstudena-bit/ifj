@@ -95,6 +95,31 @@ static void add_instruction(const char *format, ...) {
 
     list_append(&code, buf);
 }
+// Converts string to final string literal format
+// Formats characters 0-32, '#', '\' to \xyz format
+// Returns allocated string (caller will free it)
+static char *format_string_literal(const char *string) {
+    size_t len = strlen(string);
+    char *formatted = malloc(4*len+1);
+    if(formatted == NULL) {
+        fprintf(stderr, "Failed to allocate memory\n");
+        exit(99);
+    }
+    int pos = 0;
+
+    for(size_t i = 0; i < len; i++) {
+        unsigned char ch = string[i];
+        if(ch <= 32 || ch == '\\' || ch == '#') {
+            sprintf(formatted + pos, "\\%03d", ch);
+            pos += 4;
+        } else {
+            formatted[pos++] = ch;
+        }
+    }
+    formatted[pos] = '\0';
+    return formatted;
+}
+
 
 void gen_init(void) {
     list_init(&code);
