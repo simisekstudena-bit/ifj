@@ -4,6 +4,7 @@ Author: Patrik Kadleček xkadlep01
 
 */
 
+#include "ast.h"
 #include "generator.h"
 #include <string.h>
 #include <stdarg.h>
@@ -90,7 +91,7 @@ static char *vformat(const char *format, va_list args) {
     return buf;
 }
 
-// Helper function
+// Helper function for format_literal
 // Returns what vformat returned
 static char *alloc_format(const char *format, ...) {
     va_list args;
@@ -133,6 +134,29 @@ static char *format_string_literal(const char *string) {
     }
     formatted[pos] = '\0';
     return formatted;
+}
+
+// Converts literal node to operand (e.g. "int@5")
+// Returns allocated string (caller must free)
+static char *format_literal(ASTNode *node) {
+    switch (node->type) {
+        case NODE_INT_LITERAL:
+            return alloc_format("int@%d", node->int_value);
+        case NODE_DOUBLE_LITERAL:
+            return alloc_format("float@%a", node->double_value);
+        case NODE_STRING_LITERAL: {
+            char *formatted = format_string_literal(node->string_value);
+            char *operand = alloc_format("string@%s", formatted);
+            free(formatted);
+            return operand;
+        }
+        case NODE_UNIT_LITERAL:
+            return alloc_format("nil@nil");
+        // not a literal (throw error)
+        default:
+            fprintf(stderr, "format_literal: not a literal node\n");
+            exit(99);
+    }
 }
 
 void gen_init(void) {
