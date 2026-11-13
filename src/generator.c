@@ -64,12 +64,9 @@ static void list_free(list_t *l) {
     l->last = NULL;
 }
 
-// Formats instruction before appending to the code list
-// ("PUSHS int@%d", 42) ==> PUSHS int@42
-static void add_instruction(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-
+// Formats instruction ("PUSHS int@%d", 42) ==> PUSHS int@42
+// Returns formatted instruction
+static char *vformat(const char *format, va_list args) {
     va_list args2;
     va_copy(args2, args);
 
@@ -89,12 +86,30 @@ static void add_instruction(const char *format, ...) {
 
     // Writes formatted string into buffer
     vsnprintf(buf, len + 1, format, args2);
-
     va_end(args2);
-    va_end(args);
-
-    list_append(&code, buf);
+    return buf;
 }
+
+// Helper function
+// Returns what vformat returned
+static char *alloc_format(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    char *result = vformat(format, args);
+    va_end(args);
+    return result;
+}
+
+// Appends instruction to code list
+static void add_instruction(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    list_append(&code, vformat(format, args));
+    va_end(args);
+}
+
 // Converts string to final string literal format
 // Formats characters 0-32, '#', '\' to \xyz format
 // Returns allocated string (caller will free it)
@@ -119,7 +134,6 @@ static char *format_string_literal(const char *string) {
     formatted[pos] = '\0';
     return formatted;
 }
-
 
 void gen_init(void) {
     list_init(&code);
