@@ -24,7 +24,8 @@ static int comment_depth = 0;
 static ScannerState state = STATE_LINE_START;
 static bool comment_has_newline = false;
 static int space_count = 0;
-
+static bool tab_in_indent = false;
+static bool comment_from_paren = false;
 //odsadenia 
 static int indent_stack[100] = {0};
 static int indent_top = 0;  
@@ -99,12 +100,10 @@ Token get_token(FILE *source_file){
 
             
             else if (c == '\t'){
-                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
-                exit(1);
-
-
+                tab_in_indent = true;
             }
             else if (c == '\n'|| c == '\r') {
+                tab_in_indent = false;
                 space_count = 0;
                 continue;
             }
@@ -116,6 +115,7 @@ Token get_token(FILE *source_file){
                      
                     while ((c = fgetc(source_file)) != '\n' && c != EOF);
                     space_count = 0;
+                    tab_in_indent = false;
                     continue;
                 }
                 else if (next == '*') {
@@ -144,22 +144,20 @@ Token get_token(FILE *source_file){
                         else prev = c;
                     }
 
-                    // medzery za komentarom 
                     do {
                         c = fgetc(source_file);
-                    } while (c == ' ');
+                    } while (c == ' ' || c == '\t');
 
-                    //riadok obsahuje len komentar = skip
-                    if (c == '\n' || c == EOF) {
-                        comment_has_newline = false;
-                        space_count = 0;
-                        continue;
-                    }
-
-                    if (comment_has_newline) {
+                    
+                    if (comment_has_newline && c != '\n' && c != '\r' && c != EOF && c != '/') {
                         fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
                         exit(1);
                     }
+                    comment_has_newline = false;
+
+                    // zvysok riadku spracuje STATE_LINE_START odznova
+                    ungetc(c, source_file);
+                    continue;
                     
                 }
                 else {
@@ -167,9 +165,12 @@ Token get_token(FILE *source_file){
                 }
             }
             ungetc(c, source_file);
+            if (tab_in_indent) {
+                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
+                exit(1);
+            }
             
-            
-
+    
 
             //ident 
             if (space_count > indent_stack[indent_top]) {
@@ -189,7 +190,7 @@ Token get_token(FILE *source_file){
             if (space_count < indent_stack[indent_top]){
                 indent_top --;
                 if (space_count > indent_stack[indent_top]) {
-                    fprintf(stderr, "Lexikalna chyba 2: odsadenie nezodpoveda ziadnej urovni\n");
+                    fprintf(stderr, "Syntakticka chyba 2: odsadenie nezodpoveda ziadnej urovni\n");
                     exit(2);
                 }
                 Ttoken.Ttype = TOKEN_DEDENT;
@@ -210,7 +211,7 @@ Token get_token(FILE *source_file){
             
             if (c == ' ' || c == '\t')break;
             
-            if (paren_depth == 0 && comment_has_newline && c != '\n' && c != '\r' && c != EOF)  {
+            if (paren_depth == 0 && comment_has_newline && c != '\n' && c != '\r' && c != EOF && c != '/')  {
                 fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
                 exit(1);
             }
@@ -647,6 +648,10 @@ Token get_token(FILE *source_file){
                 break;
             }
             else {
+                if (paren_depth == 0 && comment_has_newline) {
+                    fprintf(stderr, "Lexikalna chyba 1: za blokovym komentarom s novym riadkom nesmie byt kod\n");
+                    exit(1);
+                }
                 ungetc(c, source_file);
                 Ttoken.Ttype = TOKEN_DIV;
                 state = STATE_START;
@@ -712,7 +717,13 @@ Token get_token(FILE *source_file){
             else if (c == '/') {
                 comment_depth--;
                 if (comment_depth == 0) {
-                    state = STATE_START;
+                    if (comment_from_paren) {
+                        comment_from_paren = false;
+                        state = STATE_PAREN_LINE_START;
+                    }
+                    else {
+                        state = STATE_START;
+                    }
                 }
                 
                 else {
@@ -958,19 +969,40 @@ Token get_token(FILE *source_file){
                 break;
             }
             if (c == '\n' || c == '\r') {
+                tab_in_indent = false;
                 space_count = 0;
                 break;
             }
             if (c == '\t') {
-                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
-                exit(1);
+                tab_in_indent = true;
+                break;
             }
             if (c == EOF) {
                 space_count = 0;
+                tab_in_indent = false;
                 state = STATE_START;
                 break;
             }
+            if (c == '/') {
+                int next = fgetc(source_file);           
+                if (next == '/') {                       
+                    while ((c = fgetc(source_file)) != '\n' && c != EOF);   
+                    ungetc(c, source_file);              
+                    break;
+                }
+                if (next == '*') {                  
+                    comment_depth = 1;
+                    comment_from_paren = true;       
+                    state = STATE_BLOCK_COMMENT;
+                    break;
+                }
+                ungetc(next, source_file);               
+            }
             ungetc(c, source_file);
+            if (tab_in_indent) {
+                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
+                exit(1);
+            }
             if (c != ')' && space_count <= indent_stack[indent_top]) {
                 fprintf(stderr, "Syntakticka chyba 2: pokracovaci riadok v zatvorkach musi byt odsadeny viac\n");
                 exit(2);
