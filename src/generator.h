@@ -9,21 +9,6 @@ Author: Patrik Kadleček xkadlep01
 #include <stdlib.h>
 #include <stdio.h>
 
-// Operators supported in expressions
-typedef enum {
-    OP_ADD,     // x+y
-    OP_SUB,     // x-y
-    OP_DIV,     // x/y
-    OP_MUL,     // x*y
-    OP_NEG,     // -x
-    OP_GT,      // x>y
-    OP_GTE,     // x>=y
-    OP_LT,      // x<y
-    OP_LTE,     // x<=y
-    OP_EQ,      // x==y
-    OP_NEQ      // x!=y
-} operator_t;
-
 // Initializes generator
 void gen_init(void);
 
