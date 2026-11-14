@@ -15,6 +15,7 @@ typedef enum {
     TYPE_STRING,
     TYPE_UNIT,
     TYPE_ANY, // parametre funkcii
+    TYPE_BOOL, // interne
 } DataType;
 
 #endif
