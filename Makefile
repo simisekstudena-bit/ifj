@@ -14,6 +14,9 @@ IN = /dev/null
 
 
 build: $(TARGET)
+
+all: build
+
 $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@
 
