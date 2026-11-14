@@ -48,6 +48,8 @@ typedef struct {
 
 typedef struct {
     bool is_modifiable; // var = true, val = false
+    bool initializing; // checks if the decleration of same named
+                       // expression as a function parameter includes initialization
     int scope_id;    // jedinecne cislo rozsahu pre generator
 } symtable_var_t;
 
