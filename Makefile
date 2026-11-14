@@ -1,5 +1,6 @@
 # Projekt: Implementace prekladace
 # Author: Patrik Kadleček - xkadlep01
+#         Jakub Ferencik - xferenj00
  
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -MMD -MP
@@ -7,8 +8,9 @@ TARGET = ifj26
 SRCS = $(wildcard src/*.c)
 OBJS = $(SRCS:.c=.o)
 DEPS = $(OBJS:.o=.d)
+IN = /dev/null
 
-.PHONY: all build clean check build-check
+.PHONY: build clean check build-check debug valgrind
 
 
 build: $(TARGET)
@@ -21,6 +23,13 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+debug: clean
+	$(MAKE) CFLAGS="$(CFLAGS) -g -fsanitize=address,undefined"
+
+valgrind: clean
+	$(MAKE) CFLAGS="$(CFLAGS) -g"
+	valgrind --leak-check=full --error-exitcode=1 ./$(TARGET) < $(IN)
+
 # TODO
 # check:
 # build-check:
@@ -28,4 +37,4 @@ $(TARGET): $(OBJS)
 -include $(DEPS)
 
 clean:
-	rm -f $(TARGET) $(OBJS) $(DEPS)
+	rm -f $(TARGET) src/*.o src/*.d
