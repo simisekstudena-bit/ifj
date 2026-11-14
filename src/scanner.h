@@ -22,7 +22,21 @@ typedef enum {
     STATE_BLOCK_COMMENT,
     STATE_BLOCK_COMMENT_STAR,
     STATE_BLOCK_COMMENT_SLASH,
-    STATE_START
+    STATE_DOUBLE_DIGITS,
+    STATE_EXP,
+    STATE_EXP_SIGN,
+    STATE_EXP_DIGITS,
+    STATE_DOUBLE_UNDERSCORE,
+    STATE_EXP_UNDERSCORE,
+    STATE_START,
+    STATE_STRING_START,
+    STATE_STRING_QUOTES2,
+    STATE_STRING,
+    STATE_MULTILINE_STRING,
+    STATE_MULTILINE_QUOTES,
+    STATE_DOT,\
+    STATE_PAREN_LINE_START,
+    STATE_STRING_ESCAPE
 } ScannerState;
 
 typedef enum {
@@ -70,7 +84,11 @@ typedef enum {
     TOKEN_RPAREN,           // )
     TOKEN_COLON,            // :
     TOKEN_COMMA,            // ,
-    TOKEN_SEMICOLON         // ;
+    TOKEN_SEMICOLON,        // ;
+    TOKEN_DOT,              // .
+    TOKEN_AT_MAIN,          // @main
+    TOKEN_IFJ26             // ifj26
+
 } TokenType;
 
 typedef union{
@@ -90,6 +108,22 @@ TokenAtribut Tatribut;
 
 }Token; 
 
+
+typedef struct {
+    const char *name;
+    TokenType type;
+} Keyword;
+
+
+
+
 Token get_token(FILE *source_file);
 
+void free_token(Token *t);
+
+TokenType lookup_keyword(char *str);
+
+
   #endif
+
+
