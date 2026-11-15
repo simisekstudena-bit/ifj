@@ -4,7 +4,6 @@ Author: Patrik Kadleček xkadlep01
 
 */
 
-#include "ast.h"
 #include "generator.h"
 #include "errors.h"
 #include <string.h>
@@ -176,4 +175,16 @@ void gen_print(FILE *out) {
 
 void gen_free(void) {
     list_free(&code);
+}
+
+void gen_program(ASTNode *root) {
+
+    ASTNode *node = root->body;
+    while(node != NULL) {
+        if(node->is_main) {
+            add_instruction("JUMP %s", node->name);
+            break;
+        }
+        node = node->next;
+    }
 }

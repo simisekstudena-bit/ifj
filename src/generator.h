@@ -8,6 +8,7 @@ Author: Patrik Kadleček xkadlep01
 
 #include <stdlib.h>
 #include <stdio.h>
+#include "ast.h"
 
 // Initializes generator
 void gen_init(void);
@@ -17,5 +18,8 @@ void gen_print(FILE *out);
 
 // Frees memory used by generator
 void gen_free(void);
+
+// Generates final code from AST root
+void gen_program(ASTNode *root);
 
 #endif
