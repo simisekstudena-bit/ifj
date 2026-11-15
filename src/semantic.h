@@ -9,7 +9,7 @@ Rozhranie semantickej analyzy
 
 #include "ast.h"
 #include "symtable.h"
-#include "types.h"
+#include "errors.h"
 
 /**
  * vstupny bod semantiky ktory sa vola z mainu.
