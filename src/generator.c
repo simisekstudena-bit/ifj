@@ -6,6 +6,7 @@ Author: Patrik Kadleček xkadlep01
 
 #include "ast.h"
 #include "generator.h"
+#include "errors.h"
 #include <string.h>
 #include <stdarg.h>
 
@@ -38,7 +39,7 @@ static void list_append(list_t *l, char *text) {
     if (new_node == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
         free(text);
-        exit(99);
+        exit(INTERNAL_INTERPRET_ERR);
     }
     // Takes ownership of instruction
     new_node->instruction = text;
@@ -75,14 +76,14 @@ static char *vformat(const char *format, va_list args) {
     int len = vsnprintf(NULL, 0, format, args);
     if (len < 0) {
         fprintf(stderr, "Failed to load instruction length\n");
-        exit(99);
+        exit(INTERNAL_INTERPRET_ERR);
     }
 
     // Creates a buffer for instruction
     char *buf = malloc(len + 1);
     if (buf == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
-        exit(99);
+        exit(INTERNAL_INTERPRET_ERR);
     }
 
     // Writes formatted string into buffer
@@ -119,7 +120,7 @@ static char *format_string_literal(const char *string) {
     char *formatted = malloc(4*len+1);
     if(formatted == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
-        exit(99);
+        exit(INTERNAL_INTERPRET_ERR);
     }
     int pos = 0;
 
@@ -155,7 +156,7 @@ static char *format_literal(ASTNode *node) {
         // not a literal (throw error)
         default:
             fprintf(stderr, "format_literal: not a literal node\n");
-            exit(99);
+            exit(INTERNAL_INTERPRET_ERR);
     }
 }
 
