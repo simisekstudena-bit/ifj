@@ -7,17 +7,7 @@
 
 #include "scanner.h"
 #include <stdbool.h>
-
-/*
-@brief enumeration of possible data types 
-*/
-typedef enum {
-    TYPE_NONE,
-    TYPE_INT,
-    TYPE_DOUBLE,
-    TYPE_STRING,
-    TYPE_UNIT
-}DataType;
+#include "types.h"
 
 /*
 @brief enumeration of possible node types
