@@ -6,10 +6,12 @@
 #include <stdlib.h>
 #include "ast.h"
 #include "parser.h"
+#include "parser_internal.h"
+#include "expression.h"
 
 
 static FILE *current_file;
-static Token current_token;
+Token current_token;
 /*
 in case of needed lookahead, LL(2)
 */
@@ -19,7 +21,7 @@ static bool has_lookahead = false;
 /*
 @brief function reading the advance token
 */
-static void advance() {
+void advance() {
     if (has_lookahead) {
         current_token = lookahead;
         has_lookahead = false;
@@ -31,7 +33,7 @@ static void advance() {
 /*
 @brief peeks for the type of the next token when lookahead is needed
 */
-static TokenType peek_type(void) {
+TokenType peek_type(void) {
     if(!has_lookahead) {
         lookahead = get_token(current_file);
         has_lookahead = true;
@@ -42,7 +44,7 @@ static TokenType peek_type(void) {
 @brief prints message to stderrin case of error and exits with exit code 2
 @param message message to write to stderr
 */
-static void syntax_error(const char *message) {
+void syntax_error(const char *message) {
     fprintf(stderr, "Syntax error: %s\n", message);
     exit(2);
 }
@@ -109,6 +111,7 @@ static DataType parse_type(void){
 
 /*
 @brief parses <opt_type> → : <type> | epsilon
+@return either the type or none when the type is not specified
 */
 static DataType parse_opt_type(void){
     if(current_token.Ttype == TOKEN_COLON) {
@@ -126,7 +129,6 @@ static ASTNode *parse_parameters(void);
 static ASTNode *parse_func_body(void);
 static ASTNode *parse_block(void);
 static ASTNode *parse_statement(void);
-static ASTNode *parse_expression(void);
 static ASTNode *parse_var_decl(void);
 static ASTNode *parse_expression_or_func_call(void);
 static ASTNode *parse_return(void);
@@ -152,6 +154,9 @@ static void parse_prolog(void) {
     expect(TOKEN_EOL, "expected end of line after prolog.");
 }
 
+/*
+@brief parses program following the grammar rule <program> → import ifj26.* EOL <func_list>
+*/
 ASTNode *parse_program(FILE *source_file) {
     current_file = source_file;
     advance();
@@ -171,6 +176,7 @@ ASTNode *parse_program(FILE *source_file) {
 
 /*
 @brief parses function definition
+@return node of the function definition
 */
 static ASTNode* parse_func_def(void) {
     bool is_main = false;
@@ -201,7 +207,9 @@ static ASTNode* parse_func_def(void) {
 }
 
 /*
-@brief: function parsing parameters
+@brief: parses parameters in function declaration
+@return head the firts parameter
+
 */
 static ASTNode* parse_parameters(void) {
     ASTNode *head = NULL;
@@ -343,12 +351,6 @@ static ASTNode *parse_return(void) {
     return node;
 }
 
-// TODO dodelej vyrazy
-static ASTNode *parse_expression(void) {
-    syntax_error("expressions are not implemented yet.");
-    return NULL;
-}
-
 /*
 @brief parses variable declaration
 whether is it a var or val is noted in is_var in the node
@@ -381,7 +383,7 @@ inconsistency in grammar -> lookahead is needed whether to parse function call o
 */
 static ASTNode *parse_expression_or_func_call(void) {
     if(current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_LPAREN) {
-        parse_func_call();
+        return parse_func_call();
     }
     return parse_expression();
 }
