@@ -177,6 +177,48 @@ void gen_free(void) {
     list_free(&code);
 }
 
+// Pulls variables from functions to the beginning
+static void defvar_load(ASTNode *node) {
+    if (node == NULL)
+        return;
+    ASTNode *current = node->body;
+    while(current != NULL) {
+        switch (current->type) {
+            case NODE_VAR_DECL:
+                add_instruction("DEFVAR LF@%s", current->name);
+                break;
+            case NODE_IF:
+                defvar_load(current->body);
+                defvar_load(current->else_body);
+                break;
+            case NODE_WHILE:
+                defvar_load(current->body);
+                break;
+            default:
+                break;
+        }
+        current = current->next;
+    }
+}
+
+// Generates code for one function
+static void gen_function(ASTNode *node) {
+    add_instruction("LABEL %s", node->name);
+    add_instruction("CREATEFRAME");
+    add_instruction("PUSHFRAME");
+
+    // Defines parameters
+    ASTNode *param = node->params;
+    while(param != NULL) {
+        add_instruction("DEFVAR LF@%s", param->name);
+        param = param->next;
+    }
+    if (node->body != NULL && node->body->type == NODE_BLOCK) {
+        defvar_load(node->body);
+    }
+}
+
+
 void gen_program(ASTNode *root) {
 
     ASTNode *node = root->body;
