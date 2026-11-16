@@ -58,6 +58,11 @@ typedef struct ASTNode {
     bool is_var;            //jestli je var (1) nebo val (0)
     bool is_main;
 
+    char *unique_name;
+    bool to_double;
+    struct ASTNode *function_definition;
+    bool builtin;
+
 } ASTNode;
 
 ASTNode* ast_create_node(NodeType type);
