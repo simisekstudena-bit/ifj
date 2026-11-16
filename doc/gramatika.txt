@@ -16,7 +16,7 @@
 <param_list> → <param> <param_next>
 <param_list> → epsilon
 <param> → id : <type>
-<param_next> → , <param> <param_next>
+<param_next> → , <param_next>
 <param_next> → epsilon
 
 <func_body> → <expression_or_func_call> EOL
@@ -27,11 +27,11 @@
 <statement_list_n> → <statement> <statement_list_n>
 <statement_list_n> → epsilon
 
-<statement> → <var_decl>
-<statement> → <assign_statement>
-<statement> → <return_statement>
-<statement> → <expression>
-<statement> → <func_call>
+<statement> → <var_decl> EOL
+<statement> → <assign_statement> EOL
+<statement> → <return_statement> EOL
+<statement> → <expression> EOL
+<statement> → <func_call> EOL
 
 <statement> → <if_statement>
 <statement> → <while_statement>
@@ -50,6 +50,7 @@
 <expression_or_func_call> → <func_call>
 
 <func_call> → id ( <arg_list> )
+<arg_list> → epsilon
 <arg_list> → <term> <arg_next>
 <arg_next> → , <arg_next2>
 <arg_next> → epsilon
@@ -65,15 +66,13 @@
 <expression> je zpracovano precedencni syntaktickou analyzou
 
 Precedencni syntakticka analyza
-< na zasobnik
-> provedeme operaci
 
 	Vstupni token
 		u-    +, -		*, /	rel	!=,==	(	)	id	$
 u-		<		>		>		>	>		<	>	<	>
 +,-		<		>	    <	    >	>		<	>   <   >
 *, /    <		>	    >	    >	>		<	>	<	>
-rel	    <		<	    <	    >	>		<	>	<	>
+rel	    <		<	    <	    	>		<	>	<	>
 !=, ==	<		<		<		<			<	>	<	>
 (	    <		<	    <	    <	<		<	=	<
 )	    		>	    >	    >	>			>		>
