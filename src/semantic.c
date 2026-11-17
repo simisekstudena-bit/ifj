@@ -58,6 +58,12 @@ static char *make_unique_name(const char *name, int scope_id) {
     snprintf(unique, (size_t)len + 1, "%s$%d", name, scope_id);
     return unique;
 }
+
+static int sem_expression_extraction(ASTNode *expression, symtable_stack_t *stack) {
+    if (expression->type == NODE_FUNC_CALL) return sem_call(expression, stack);
+    return sem_expression(expression, stack);
+}
+
 static bool assign_conv_type(DataType target, ASTNode *value) {
     DataType src = value->data_type;
     if (target == TYPE_ANY) return true;
@@ -69,6 +75,94 @@ static bool assign_conv_type(DataType target, ASTNode *value) {
     }
     return false;
 }
+
+int sem_call(ASTNode *node, symtable_stack_t *scopes) {
+    symtable_data_t *data = search_item(g_global, node->name);
+    if (data == NULL) return SEM_VAL_UNDEFINED_ERR;
+    int num_arguments = 0;
+    for (ASTNode *param = node->params; param != NULL; param = param->next) num_arguments++;
+    if (num_arguments != data->func.param_count) return SEM_CALL_ERR;
+    int argument_index = 0;
+    for (ASTNode *param = node->params; param != NULL; param = param->next) {
+        int err = sem_expression(param, scopes);
+        if (err != ERROR_OK) return err;
+        if (!assign_conv_type(data->func.params[argument_index].type, param)) return  SEM_CALL_ERR;
+        argument_index++;
+    }
+    if (data->data_type == TYPE_NONE) {
+        if (data->func.inferring) return SEM_OTHER_ERROR;
+        int err = check_function(data->func.node);
+        if (err != ERROR_OK) return err;
+    }
+    node->data_type = data->data_type;
+    node->function_definition = data->func.node;
+    node->builtin = data->func.builtin;
+
+    return ERROR_OK;
+}
+
+/**
+ * vygenerovane pomocou claude opus s promptom: Vytvor funkciu declare_val ktora zapise data val do symtable a prida
+ * nodu unique name
+ */
+static int declare_val(symtable_stack_t *stack, ASTNode *node, symtable_kind_t kind, bool modifiable) {
+    symtable_data_t data = {0};
+    data.kind = kind;
+    data.data_type = node->data_type;
+    data.var.is_modifiable = modifiable;
+    data.var.scope_id = stack_scope_id(stack);
+    symtable_status_t status = insert_data(stack_top(stack), node->name, data);
+    if (status == SYMTABLE_ERR_EXISTS) return SEM_REDEF_ERR;
+    if (status != SYMTABLE_OK) return INTERNAL_INTERPRET_ERR;
+    node->unique_name = make_unique_name(node->name, data.var.scope_id);
+    if (node->unique_name == NULL) return INTERNAL_INTERPRET_ERR;
+    return ERROR_OK;
+}
+
+int check_function(ASTNode *function) {
+    symtable_data_t *data = search_item(g_global, function->name);
+    if (data == NULL) return INTERNAL_INTERPRET_ERR;
+
+    data->func.inferring = true;
+    symtable_stack_t *local_stack;
+    if ((local_stack = init_stack()) == NULL)  return  INTERNAL_INTERPRET_ERR;
+    symtable_t *func_table = create_table(16);
+    if (func_table == NULL || stack_push(local_stack, func_table) != SYMTABLE_OK) {
+        free_symtable(func_table);
+        free_stack(local_stack);
+        return INTERNAL_INTERPRET_ERR;
+    }
+    int err = ERROR_OK;
+    for (ASTNode *param = function->params; param != NULL && err == ERROR_OK; param = param->next) {
+        err = declare_val(local_stack, param, SYMBOL_PARAMETER, false);
+    }
+    if (err == ERROR_OK) {
+        if (function->body->type == NODE_BLOCK) err = sem_check_block(function->body, local_stack, data);
+        else err = check_return(function->body, local_stack, data);
+    }
+    if (err == ERROR_OK && data->data_type == TYPE_NONE) data->data_type = TYPE_UNIT;
+    function->data_type = data->data_type;
+    data->func.inferring = false;
+    data->func.checked = true;
+    free_stack(local_stack);
+
+    return err;
+}
+
+int sem_lookup_var(symtable_stack_t *scopes, ASTNode *node, symtable_data_t **found) {
+    symtable_data_t *data = stack_search(scopes, node->name);
+    if (data == NULL) return SEM_VAL_UNDEFINED_ERR;
+
+    node->data_type = data->data_type;
+    node->unique_name = make_unique_name(node->name, data->var.scope_id);
+
+    if (node->unique_name == NULL) return INTERNAL_INTERPRET_ERR;
+    if (found != NULL) *found = data;
+    return ERROR_OK;
+}
+
+
+
 int first_run(ASTNode *root, symtable_t *global) {
     const size_t count = sizeof(builtins) / sizeof(builtins[0]);
     for (size_t i = 0; i < count; i++) {
