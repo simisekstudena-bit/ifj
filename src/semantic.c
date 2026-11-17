@@ -58,6 +58,17 @@ static char *make_unique_name(const char *name, int scope_id) {
     snprintf(unique, (size_t)len + 1, "%s$%d", name, scope_id);
     return unique;
 }
+static bool assign_conv_type(DataType target, ASTNode *value) {
+    DataType src = value->data_type;
+    if (target == TYPE_ANY) return true;
+    if (src == TYPE_BOOL) return false;
+    if (target == src) return true;
+    if (target == TYPE_DOUBLE && src == TYPE_INT) {
+        value->to_double = true;
+        return true;
+    }
+    return false;
+}
 int first_run(ASTNode *root, symtable_t *global) {
     const size_t count = sizeof(builtins) / sizeof(builtins[0]);
     for (size_t i = 0; i < count; i++) {
