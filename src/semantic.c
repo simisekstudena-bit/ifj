@@ -33,6 +33,11 @@ static const builtin_t builtins[] = {
 
 static const char *param_names[] = { "p0", "p1", "p2" };
 
+static symtable_t *g_global = NULL;
+static int check_function(ASTNode *function);
+static int sem_check_block(ASTNode *block, symtable_stack_t *stack, symtable_data_t *function_data);
+static int check_return(ASTNode *value, symtable_stack_t *stack, symtable_data_t *function_data);
+
 /**
  * Note: vygenerovane pomocou Claude opus s prommptom: Napis funkciu make_unique_name,
  * ktora vrati alokovany retazec v tvare meno$scope_id, NULL pri chybe alokacie.
@@ -188,6 +193,7 @@ int first_run(ASTNode *root, symtable_t *global) {
     for (ASTNode *function = root->body; function != NULL; function = function->next) {
         symtable_data_t data = {0};
         data.kind = SYMBOL_FUNCTION;
+        data.func.node = function;
         data.data_type = function->data_type;
         data.func.is_main = function->is_main;
         data.func.defined = true;
@@ -215,21 +221,111 @@ int first_run(ASTNode *root, symtable_t *global) {
     return ERROR_OK;
 }
 
-int semantic_analysis(ASTNode *root) {
-    if (root == NULL || root->type != NODE_PROGRAM) return INTERNAL_INTERPRET_ERR;
+/**
+ * vygenerovane pomocou claude opus s promptom: Vytvor funkciu check_statement ktora podla typu
+ * prikazu skontroluje semantiku, pri var_decl najprv skontroluje hodnotu a potom zapise cez declare_val,
+ * pri assign skontroluje ci premenna existuje a je var, return posle do check_return, pri if a while
+ * musi byt podmienka bool a bloky skontroluje cez sem_check_block. pouzi sem_expression_extraction,
+ * sem_lookup_var a assign_conv_type, chyby vracaj z errors.h
+ */
+static int check_statement(ASTNode *s, symtable_stack_t *stack, symtable_data_t *func) {
+    int err;
+    switch (s->type) {
+        case NODE_VAR_DECL:
+            if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
+            if (s->left->data_type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+            if (s->data_type == TYPE_NONE) s->data_type = s->left->data_type;
+            else if (!assign_conv_type(s->data_type, s->left)) return SEM_DIFF_TYPE_ERR;
+            return declare_val(stack, s, SYMBOL_VARIABLE, s->is_var);
+        case NODE_ASSIGN: {
+            symtable_data_t *var = NULL;
+            if ((err = sem_lookup_var(stack, s, &var)) != ERROR_OK) return err;
+            if (var->kind == SYMBOL_PARAMETER || !var->var.is_modifiable) return SEM_INITIALIZATION_ERR;
+            if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
+            if (!assign_conv_type(s->data_type, s->left)) return SEM_DIFF_TYPE_ERR;
+            return ERROR_OK;
+        }
+        case NODE_EXPR_STMT:
+            return sem_expression_extraction(s->left, stack);
+        case NODE_RETURN:
+            return check_return(s->left, stack, func);
+        case NODE_IF:
+            if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
+            if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+            if ((err = sem_check_block(s->body, stack, func)) != ERROR_OK) return err;
+            return sem_check_block(s->else_body, stack, func);
+        case NODE_WHILE:
+            if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
+            if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+            return sem_check_block(s->body, stack, func);
+        default:
+            return INTERNAL_INTERPRET_ERR;
+    }
+}
 
-    symtable_stack_t *stack = init_stack();
-    if (stack == NULL) return INTERNAL_INTERPRET_ERR;
+static int check_return(ASTNode *value, symtable_stack_t *stack, symtable_data_t *func) {
+    DataType type = TYPE_UNIT;
+    if (value != NULL) {
+        int error  = sem_expression_extraction(value,stack);
+        if (error != ERROR_OK) return error;
+        type = value->data_type;
+        if (type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+    }
+    if (func->data_type == TYPE_NONE) {
+        func->data_type = type;
+        return ERROR_OK;
+    }
 
-    symtable_t *global = create_table(32); // uchovava definicie
-    if (global == NULL) {
-        free_stack(stack);
+    if (value == NULL) {
+        if (func->data_type != TYPE_UNIT) return SEM_DIFF_TYPE_ERR;
+        return ERROR_OK;
+    }
+    if (!assign_conv_type(func->data_type, value)) return SEM_DIFF_TYPE_ERR;
+    return ERROR_OK;
+
+    return ERROR_OK;
+}
+
+
+static int sem_check_block(ASTNode *block, symtable_stack_t *stack, symtable_data_t *function_data) {
+    if (block == NULL || block->type != NODE_BLOCK) return INTERNAL_INTERPRET_ERR;
+
+    symtable_t *scope = create_table(16);
+    if (scope == NULL) return INTERNAL_INTERPRET_ERR;
+    if (stack_push(stack, scope) != SYMTABLE_OK) {
+        free_symtable(scope);
         return INTERNAL_INTERPRET_ERR;
     }
 
+    for (ASTNode *statement = block->body; statement != NULL; statement = statement->next) {
+        int error = check_statement(statement, stack, function_data);
+        if (error != ERROR_OK) return error;
+    }
+
+    stack_pop(stack);
+    return ERROR_OK;
+}
+
+int second_run(ASTNode *root, symtable_t *global) {
+    g_global = global;
+    for (ASTNode *function = root->body; function != NULL; function = function->next) {
+        symtable_data_t *data = search_item(global, function->name);
+        if (data->func.checked) continue;
+        int err = check_function(function);
+        if (err != ERROR_OK) return err;
+    }
+    return ERROR_OK;
+}
+
+int semantic_analysis(ASTNode *root) {
+    if (root == NULL || root->type != NODE_PROGRAM) return INTERNAL_INTERPRET_ERR;
+
+    symtable_t *global = create_table(32);
+    if (global == NULL) return INTERNAL_INTERPRET_ERR;
 
     int error = first_run(root, global);
     if (error == ERROR_OK) error = second_run(root, global);
-    free_stack(stack);
+
+    free_symtable(global);
     return error;
 }
