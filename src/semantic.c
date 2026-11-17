@@ -9,6 +9,7 @@ Kod semantickej analyzy
 #include "ast.h"
 #include "errors.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct {
     const char *name;
@@ -17,7 +18,7 @@ typedef struct {
     const DataType *param_type;
 } builtin_t;
 
-const builtin_t builtins[] = {
+static const builtin_t builtins[] = {
     {"print", TYPE_UNIT, 1, (DataType[]){ TYPE_ANY }},
     {"readLine", TYPE_STRING, 0, NULL},
     {"readInt", TYPE_INT, 0, NULL},
@@ -32,6 +33,31 @@ const builtin_t builtins[] = {
 
 static const char *param_names[] = { "p0", "p1", "p2" };
 
+/**
+ * Note: vygenerovane pomocou Claude opus s prommptom: Napis funkciu make_unique_name,
+ * ktora vrati alokovany retazec v tvare meno$scope_id, NULL pri chybe alokacie.
+ *
+ * Vytvori unikatne meno premennej pre generator v tvare "meno$scope_id".
+ * Jedinecne je preto, ze v jednom rozsahu nemozu byt dve rovnake mena (chyba 4)
+ * a scope_id je jedinecne pre kazdy blok v celom programe.
+ * Deklaracia aj kazde pouzitie premennej volaju funkciu s rovnakym scope_id,
+ * takze vzdy vznikne rovnake meno.
+ * @param name povodne meno premennej
+ * @param scope_id cislo rozsahu v ktorom bola premenna deklarovana
+ * @return novo alokovany retazec (uvolnuje ast_free), NULL pri chybe alokacie
+ */
+static char *make_unique_name(const char *name, int scope_id) {
+    if (name == NULL) return NULL;
+
+    int len = snprintf(NULL, 0, "%s$%d", name, scope_id);
+    if (len < 0) return NULL;
+
+    char *unique = malloc((size_t)len + 1);
+    if (unique == NULL) return NULL;
+
+    snprintf(unique, (size_t)len + 1, "%s$%d", name, scope_id);
+    return unique;
+}
 int first_run(ASTNode *root, symtable_t *global) {
     const size_t count = sizeof(builtins) / sizeof(builtins[0]);
     for (size_t i = 0; i < count; i++) {
@@ -58,9 +84,9 @@ int first_run(ASTNode *root, symtable_t *global) {
         symtable_data_t data = {0};
         data.kind = SYMBOL_FUNCTION;
         data.data_type = function->data_type;
-        if (function->data_type != TYPE_NONE) data.data_type = function->data_type;
         data.func.is_main = function->is_main;
         data.func.defined = true;
+        data.func.return_explicit = (function->data_type != TYPE_NONE);
         symtable_status_t  err;
         if ((err = insert_data(global, function->name, data)) != SYMTABLE_OK) {
             if (err == SYMTABLE_ERR_EXISTS)
@@ -78,7 +104,8 @@ int first_run(ASTNode *root, symtable_t *global) {
         if (function->is_main) main_count++;
     }
 
-    if (main_count != 1) return SEM_OTHER_ERROR;
+    if (main_count == 0) return SEM_VAL_UNDEFINED_ERR;
+    if (main_count > 1) return SEM_REDEF_ERR;
 
     return ERROR_OK;
 }
@@ -95,12 +122,9 @@ int semantic_analysis(ASTNode *root) {
         return INTERNAL_INTERPRET_ERR;
     }
 
-    if (stack_push(stack, global) != SYMTABLE_OK) {
-        free_stack(stack);
-        free_symtable(global);
-        return INTERNAL_INTERPRET_ERR;
-    }
-    int err_first_run = first_run(root, global);
+
+    int error = first_run(root, global);
+    if (error == ERROR_OK) error = second_run(root, global);
     free_stack(stack);
-    return err_first_run;
+    return error;
 }
