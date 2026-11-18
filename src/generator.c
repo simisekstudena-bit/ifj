@@ -201,6 +201,18 @@ static void defvar_load(ASTNode *node) {
     }
 }
 
+// Generates code for the end of a function
+static void gen_function_end(ASTNode *node) {
+    if(node->is_main) {
+        add_instruction("EXIT int@0");
+    } else {
+        add_instruction("PUSHS nil@nil");
+        add_instruction("POPFRAME");
+        add_instruction("RETURN");
+    }
+}
+
+
 // Generates code for one function
 static void gen_function(ASTNode *node) {
     add_instruction("LABEL %s", node->name);
@@ -216,6 +228,8 @@ static void gen_function(ASTNode *node) {
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
     }
+
+    gen_function_end(node);
 }
 
 
@@ -227,6 +241,12 @@ void gen_program(ASTNode *root) {
             add_instruction("JUMP %s", node->name);
             break;
         }
+        node = node->next;
+    }
+
+    node = root->body;
+    while(node != NULL) {
+        gen_function(node);
         node = node->next;
     }
 }
