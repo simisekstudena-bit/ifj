@@ -56,15 +56,15 @@ int sem_expression(ASTNode *expression, symtable_stack_t *scopes){
         
 
         case NODE_UNARY_OP: {
-            int error = sem_expression(expression->left, scopes);
+            int error = sem_expression(expression->right, scopes);
             if (error != ERROR_OK) {
                 return error;
             }
 
-            
-            if (expression->left->data_type != TYPE_DOUBLE && expression->left->data_type != TYPE_INT) return SEM_DIFF_TYPE_ERR;
 
-            expression->data_type = expression->left->data_type;
+            if (expression->right->data_type != TYPE_DOUBLE && expression->right->data_type != TYPE_INT) return SEM_DIFF_TYPE_ERR;
+
+            expression->data_type = expression->right->data_type;
 
             return ERROR_OK;
         }
