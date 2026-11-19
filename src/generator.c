@@ -212,6 +212,32 @@ static void gen_function_end(ASTNode *node) {
     }
 }
 
+// Generates code for one statement
+static void gen_statement(ASTNode *node) {
+    if (node == NULL) {
+        return;
+    }
+    
+    switch (node->type) {
+        case NODE_EXPR_STMT: {
+            ASTNode *expr = node->left;
+            if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0) {
+                ASTNode *arg = expr->params;
+                if(arg->type == NODE_UNIT_LITERAL) {
+                    add_instruction("WRITE string@()");
+                } else {
+                    char *operand = format_literal(arg);
+                    add_instruction("WRITE %s", operand);
+                    free(operand);
+                }
+            }
+            break;
+        }
+    
+    default:
+        break;
+    }
+}
 
 // Generates code for one function
 static void gen_function(ASTNode *node) {
@@ -225,8 +251,15 @@ static void gen_function(ASTNode *node) {
         add_instruction("DEFVAR LF@%s", param->name);
         param = param->next;
     }
+
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
+        param = node->body->body;
+    }
+
+    while(param != NULL) {
+        gen_statement(param);
+        param = param->next;
     }
 
     gen_function_end(node);
