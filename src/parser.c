@@ -142,9 +142,7 @@ static ASTNode *parse_term(void);
 //TODO: spravit to pozirani prologu az bude scanner znat prolog token
 static void parse_prolog(void) {
     expect(TOKEN_KW_IMPORT, "missing prolog 'import ifj26.*'.");
-    if(current_token.Ttype != TOKEN_IDENTIFIER || strcmp(current_token.Tatribut.string, "ifj26") != 0) {
-        syntax_error("incorrect prolog.");
-    }
+    expect(TOKEN_IFJ26, "missing ifj26 in prolog.");
     free(current_token.Tatribut.string);
     advance();
     if(strcmp(current_token.Tatribut.string, ".") != 0) {
@@ -182,7 +180,7 @@ static ASTNode* parse_func_def(void) {
     bool is_main = false;
     //<opt_main>
     //TODO: opravit, az bude @ token
-    if(current_token.Ttype == TOKEN_IDENTIFIER && current_token.Tatribut.string != NULL && strcmp(current_token.Tatribut.string, "@main") == 0) {
+    if(current_token.Ttype == TOKEN_AT_MAIN) {
         is_main = true;
     }
 
