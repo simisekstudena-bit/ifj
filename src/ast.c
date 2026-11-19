@@ -12,7 +12,7 @@
 @return pointer to the newly created AST node
 */
 ASTNode* ast_create_node(NodeType type) {
-    ASTNode *node = (ASTNode*) malloc(sizeof(ASTNode));
+    ASTNode *node = (ASTNode*) calloc(1, sizeof(ASTNode));
     if (node == NULL) {
         fprintf(stderr, "Memory allocation failed.\n");
         exit(99);
