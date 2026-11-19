@@ -10,6 +10,7 @@ File obsahuje rozhranie tabulky symbolov
 
 #include <stdbool.h>
 #include "types.h"
+struct ASTNode;
 
 /**
  * Navratove stavy tabulky symbolov. 
@@ -59,10 +60,11 @@ typedef struct {
     int param_count;
     int param_capacity;
     bool return_explicit; // navratovy typ bol uvedeny
-    bool defined;         // funkcia bola definovana, nie iba zatial volana
-    bool is_main;         
+    bool is_main;
     bool builtin;         // vstavana funkcia
     bool inferring;       // navratovy typ sa prave odvodzuje - volanie seba
+    struct ASTNode *node; // ukazatel na node s ktoreho bola vytvorena
+    bool checked;         // ci bola skontrolovana semantikou
 } symtable_func_t;
 
 typedef struct {
