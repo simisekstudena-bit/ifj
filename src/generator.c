@@ -154,12 +154,19 @@ static char *format_literal(ASTNode *node) {
             return alloc_format("nil@nil");
         case NODE_IDENTIFIER:
             return alloc_format("LF@%s", node->unique_name);
-            
+
         // not a literal (throw error)
         default:
             fprintf(stderr, "format_literal: not a literal node\n");
             exit(INTERNAL_INTERPRET_ERR);
     }
+}
+
+static int label_counter = 0;
+
+static int new_label(void) {
+    label_counter += 1;
+    return label_counter;
 }
 
 void gen_init(void) {
@@ -215,6 +222,92 @@ static void gen_function_end(ASTNode *node) {
     }
 }
 
+static void gen_expression(ASTNode *node) {
+    switch (node->type) {
+    case NODE_INT_LITERAL: {
+        char * expression = format_literal(node);
+        add_instruction("PUSHS %s", expression);
+        free(expression);
+        break;
+    }
+    case NODE_DOUBLE_LITERAL: {
+        char * expression = format_literal(node);
+        add_instruction("PUSHS %s", expression);
+        free(expression);
+        break;
+    }
+    case NODE_STRING_LITERAL: {
+        char * expression = format_literal(node);
+        add_instruction("PUSHS %s", expression);
+        free(expression);
+        break;
+    }
+    case NODE_UNIT_LITERAL: {
+        char * expression = format_literal(node);
+        add_instruction("PUSHS %s", expression);
+        free(expression);
+        break;
+    } 
+    case NODE_IDENTIFIER: {
+        char * expression = format_literal(node);
+        add_instruction("PUSHS %s", expression);
+        free(expression);
+        break;
+    }
+
+    case NODE_BINOP: {
+        gen_expression(node->left);
+        gen_expression(node->right);
+        switch (node->op) {
+        case TOKEN_PLUS:
+            add_instruction("ADDS");
+            break;
+        case TOKEN_MINUS:
+            add_instruction("SUBS");
+            break;
+        case TOKEN_MUL:
+            add_instruction("MULS");
+            break;
+        case TOKEN_LT:
+            add_instruction("LTS");
+            break;
+        case TOKEN_GT:
+            add_instruction("GTS");
+            break;
+        case TOKEN_EQ:
+            add_instruction("EQS");
+            break;
+        case TOKEN_LTE:
+            add_instruction("GTS");
+            add_instruction("NOTS");
+            break;
+        case TOKEN_GTE:
+            add_instruction("LTS");
+            add_instruction("NOTS");
+            break;
+        default:
+            fprintf(stderr, "gen_expression: unsupported operator\n");
+            exit(INTERNAL_INTERPRET_ERR);
+        }
+        break;
+    }
+    default:
+        fprintf(stderr, "gen_expression: unsupported node type\n");
+        exit(INTERNAL_INTERPRET_ERR);
+    }
+}
+
+static void gen_statement(ASTNode *node);
+
+static void gen_block(ASTNode *block) {
+    if(block == NULL) return;
+    ASTNode *statement = block->body;
+    while(statement != NULL) {
+        gen_statement(statement);
+        statement = statement->next;
+    }
+}
+
 // Generates code for one statement
 static void gen_statement(ASTNode *node) {
     if (node == NULL) {
@@ -237,14 +330,40 @@ static void gen_statement(ASTNode *node) {
             break;
         }
         case NODE_VAR_DECL:
-            case NODE_ASSIGN:
-                if(node->left != NULL) {
-                    char *data = format_literal(node->left);
-                    add_instruction("MOVE LF@%s %s", node->unique_name, data);
-                    free(data);
-                }
+            if(node->left != NULL) {
+                gen_expression(node->left);
+                add_instruction("POPS LF@%s", node->unique_name);
+            }
             break;
-
+        case NODE_ASSIGN:
+            if(node->left != NULL) {
+                gen_expression(node->left);
+                add_instruction("POPS LF@%s", node->unique_name);
+            }
+            break;
+        case NODE_IF: {
+            int n = new_label();
+            gen_expression(node->cond);
+            add_instruction("PUSHS bool@false");
+            add_instruction("JUMPIFEQS if$%d$else", n);
+            gen_block(node->body);
+            add_instruction("JUMP if$%d$end", n);
+            add_instruction("LABEL if$%d$else", n);
+            gen_block(node->else_body);
+            add_instruction("LABEL if$%d$end", n);
+            break;
+        }
+        case NODE_WHILE: {
+            int n = new_label();
+            add_instruction("LABEL while$%d$start", n);
+            gen_expression(node->cond);
+            add_instruction("PUSHS bool@false");
+            add_instruction("JUMPIFEQS while$%d$end", n);
+            gen_block(node->body);
+            add_instruction("JUMP while$%d$start", n);
+            add_instruction("LABEL while$%d$end", n);
+            break;
+        }
         default:
             break;
     }
@@ -265,12 +384,7 @@ static void gen_function(ASTNode *node) {
 
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
-        param = node->body->body;
-    }
-
-    while(param != NULL) {
-        gen_statement(param);
-        param = param->next;
+        gen_block(node->body);
     }
 
     gen_function_end(node);
