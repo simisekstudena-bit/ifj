@@ -222,6 +222,7 @@ static void gen_function_end(ASTNode *node) {
     }
 }
 
+//
 static void gen_expression(ASTNode *node) {
     switch (node->type) {
     case NODE_INT_LITERAL: {
@@ -268,6 +269,13 @@ static void gen_expression(ASTNode *node) {
         case TOKEN_MUL:
             add_instruction("MULS");
             break;
+        case TOKEN_DIV:
+            if(node->data_type == TYPE_DOUBLE) 
+                add_instruction("DIVS");
+            // TODO Zaokruhlovanie k nule.
+            else
+                add_instruction("IDIVS");
+            break;
         case TOKEN_LT:
             add_instruction("LTS");
             break;
@@ -295,10 +303,13 @@ static void gen_expression(ASTNode *node) {
         fprintf(stderr, "gen_expression: unsupported node type\n");
         exit(INTERNAL_INTERPRET_ERR);
     }
+    if(node->to_double)
+        add_instruction("INT2FLOATS");
 }
 
 static void gen_statement(ASTNode *node);
 
+//
 static void gen_block(ASTNode *block) {
     if(block == NULL) return;
     ASTNode *statement = block->body;
