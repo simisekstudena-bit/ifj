@@ -150,8 +150,11 @@ static char *format_literal(ASTNode *node) {
             free(formatted);
             return operand;
         }
-        case NODE_UNIT_LITERAL:
+        case NODE_UNIT_LITERAL:    
             return alloc_format("nil@nil");
+        case NODE_IDENTIFIER:
+            return alloc_format("LF@%s", node->unique_name);
+            
         // not a literal (throw error)
         default:
             fprintf(stderr, "format_literal: not a literal node\n");
@@ -185,7 +188,7 @@ static void defvar_load(ASTNode *node) {
     while(current != NULL) {
         switch (current->type) {
             case NODE_VAR_DECL:
-                add_instruction("DEFVAR LF@%s", current->name);
+                add_instruction("DEFVAR LF@%s", current->unique_name);
                 break;
             case NODE_IF:
                 defvar_load(current->body);
@@ -221,9 +224,9 @@ static void gen_statement(ASTNode *node) {
     switch (node->type) {
         case NODE_EXPR_STMT: {
             ASTNode *expr = node->left;
-            if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0) {
+            if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0 ) {
                 ASTNode *arg = expr->params;
-                if(arg->type == NODE_UNIT_LITERAL) {
+                if(arg->type == NODE_UNIT_LITERAL || arg->data_type == TYPE_UNIT) {
                     add_instruction("WRITE string@()");
                 } else {
                     char *operand = format_literal(arg);
@@ -233,9 +236,17 @@ static void gen_statement(ASTNode *node) {
             }
             break;
         }
-    
-    default:
-        break;
+        case NODE_VAR_DECL:
+            case NODE_ASSIGN:
+                if(node->left != NULL) {
+                    char *data = format_literal(node->left);
+                    add_instruction("MOVE LF@%s %s", node->unique_name, data);
+                    free(data);
+                }
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -248,7 +259,7 @@ static void gen_function(ASTNode *node) {
     // Defines parameters
     ASTNode *param = node->params;
     while(param != NULL) {
-        add_instruction("DEFVAR LF@%s", param->name);
+        add_instruction("DEFVAR LF@%s", param->unique_name);
         param = param->next;
     }
 
