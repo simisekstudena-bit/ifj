@@ -449,6 +449,207 @@ static void gen_function(ASTNode *node) {
     gen_function_end(node);
 }
 
+// helper function to generate start of a builtin fucnction
+static void gen_builtins_start(void) {
+    add_instruction("CREATEFRAME");
+    add_instruction("PUSHFRAME");
+    add_instruction("DEFVAR LF@r");
+}
+
+// helper function to generate the end of a builtin function
+static void gen_builtins_end(void) {
+    add_instruction("PUSHS LF@r");
+    add_instruction("POPFRAME");
+    add_instruction("RETURN");
+}
+
+// readInt(): Int
+static void gen_builtins_readInt(void) {
+    add_instruction("LABEL readInt");
+    gen_builtins_start();
+    add_instruction("READ LF@r int");
+    add_instruction("JUMPIFNEQ readInt$ok LF@r nil@nil");
+    add_instruction("MOVE LF@r int@0");
+    add_instruction("LABEL readInt$ok");
+    gen_builtins_end();
+}
+
+// readDouble(): Double
+static void gen_builtins_readDouble(void) {
+    add_instruction("LABEL readDouble");
+    gen_builtins_start();
+    add_instruction("READ LF@r float");
+    add_instruction("JUMPIFNEQ readDouble$ok LF@r nil@nil");
+    add_instruction("MOVE LF@r float@0x0p+0");
+    add_instruction("LABEL readDouble$ok");
+    gen_builtins_end();
+}
+
+// readLine(): String
+static void gen_builtins_readLine(void) {
+    add_instruction("LABEL readLine");
+    gen_builtins_start();
+    add_instruction("READ LF@r string");
+    gen_builtins_end();
+}
+
+// toStr(value: Any): String
+static void gen_builtins_toStr(void) {
+    add_instruction("LABEL toStr");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@v");
+    add_instruction("DEFVAR LF@t");
+    add_instruction("POPS LF@v");
+    // Urcenie Typu
+    add_instruction("TYPE LF@t LF@v");
+    add_instruction("JUMPIFEQ toStr$int LF@t string@int");
+    add_instruction("JUMPIFEQ toStr$float LF@t string@float");
+    add_instruction("JUMPIFEQ toStr$string LF@t string@string");
+    // If no jump (nil)
+    add_instruction("MOVE LF@r string@()");
+    add_instruction("JUMP toStr$end");
+    // Int
+    add_instruction("LABEL toStr$int");
+    add_instruction("INT2STR LF@r LF@v");
+    add_instruction("JUMP toStr$end");
+    // Double
+    add_instruction("LABEL toStr$float");
+    add_instruction("FLOAT2STR LF@r LF@v");
+    add_instruction("JUMP toStr$end");
+    // String
+    add_instruction("LABEL toStr$string");
+    add_instruction("MOVE LF@r LF@v");
+    
+    add_instruction("LABEL toStr$end");
+    gen_builtins_end();
+}
+
+// toInt(value: Double): Int
+static void gen_builtins_toInt(void) {
+    add_instruction("LABEL toInt");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@v");
+    add_instruction("POPS LF@v");
+    add_instruction("FLOAT2INT LF@r LF@v");
+    gen_builtins_end();
+}
+
+// strLength(value: String): Int
+static void gen_builtins_strLenght(void) {
+    add_instruction("LABEL strLength");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@s");
+    add_instruction("POPS LF@s");
+    add_instruction("STRLEN LF@r LF@s");
+    gen_builtins_end();
+}
+
+// Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
+// "vygeneruj mi pseudokod pre funkciu gen_builtins_subStr"
+// subStr(value: String, start: Int, end: Int): String
+static void gen_builtins_subStr(void) {
+    add_instruction("LABEL subStr");
+    gen_builtins_start();
+    // parametre
+    add_instruction("DEFVAR LF@s");
+    add_instruction("DEFVAR LF@start");
+    add_instruction("DEFVAR LF@end");
+    // pomocne premenne
+    add_instruction("DEFVAR LF@len");
+    add_instruction("DEFVAR LF@tmp");
+    add_instruction("DEFVAR LF@idx");
+    add_instruction("DEFVAR LF@ch");
+    add_instruction("POPS LF@end");
+    add_instruction("POPS LF@start");
+    add_instruction("POPS LF@s");
+    add_instruction("STRLEN LF@len LF@s");
+    // kontroly
+
+    // start < 0
+    add_instruction("LT LF@tmp LF@start int@0");
+    add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
+
+    // end < 0
+    add_instruction("LT LF@tmp LF@end int@0");
+    add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
+
+    // start > end
+    add_instruction("GT LF@tmp LF@start LF@end");
+    add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
+
+    // start >= strLength(value), tested as !(start < len)
+    add_instruction("LT LF@tmp LF@start LF@len");
+    add_instruction("JUMPIFEQ subStr$err LF@tmp bool@false");
+
+    // end > strLength(value)
+    add_instruction("GT LF@tmp LF@end LF@len");
+    add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
+
+    add_instruction("MOVE LF@r string@");
+    add_instruction("MOVE LF@idx LF@start");
+    add_instruction("LABEL subStr$loop");
+    add_instruction("LT LF@tmp LF@idx LF@end");
+    add_instruction("JUMPIFEQ subStr$end LF@tmp bool@false");
+    add_instruction("GETCHAR LF@ch LF@s LF@idx");
+    add_instruction("CONCAT LF@r LF@r LF@ch");
+    add_instruction("ADD LF@idx LF@idx int@1");
+    add_instruction("JUMP subStr$loop");
+
+    add_instruction("LABEL subStr$err");
+    add_instruction("EXIT int@40");
+    add_instruction("LABEL subStr$end");
+
+    gen_builtins_end();
+}
+
+// ord(value: String, index: Int): Int
+static void gen_builtins_ord(void) {
+    add_instruction("LABEL ord");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@s");
+    add_instruction("DEFVAR LF@i");
+    // pomocne premenne
+    add_instruction("DEFVAR LF@len");
+    add_instruction("DEFVAR LF@tmp");
+    add_instruction("POPS LF@i");
+    add_instruction("POPS LF@s");
+    add_instruction("STRLEN LF@len LF@s");
+    // ak je mensie ako 0
+    add_instruction("LT LF@tmp LF@i int@0");
+    add_instruction("JUMPIFEQ ord$bad LF@tmp bool@true");
+    // index >= dlzka
+    add_instruction("LT LF@tmp LF@i LF@len");
+    add_instruction("JUMPIFEQ ord$bad LF@tmp bool@false");
+    add_instruction("STRI2INT LF@r LF@s LF@i");
+    add_instruction("JUMP ord$end");
+    add_instruction("LABEL ord$bad");
+    add_instruction("MOVE LF@r int@-1");
+    add_instruction("LABEL ord$end");
+    gen_builtins_end();
+}
+
+// chr(code: Int): String
+static void gen_builtins_chr(void) {
+    add_instruction("LABEL chr");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@code");   
+    add_instruction("POPS LF@code");
+    add_instruction("INT2CHAR LF@r LF@code");
+    gen_builtins_end();
+}
+
+// Generates built in functions
+static void gen_builtins(void) {
+    gen_builtins_readInt();
+    gen_builtins_readLine();
+    gen_builtins_readDouble();
+    gen_builtins_toStr();
+    gen_builtins_toInt();
+    gen_builtins_strLenght();
+    gen_builtins_subStr();
+    gen_builtins_ord();
+    gen_builtins_chr();
+}
 
 void gen_program(ASTNode *root) {
 
@@ -461,6 +662,7 @@ void gen_program(ASTNode *root) {
         }
         node = node->next;
     }
+    gen_builtins();
 
     node = root->body;
     while(node != NULL) {
