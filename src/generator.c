@@ -165,6 +165,7 @@ static char *format_literal(ASTNode *node) {
 
 static int label_counter = 0;
 
+// pocitadlo pre if/while
 static int new_label(void) {
     label_counter += 1;
     return label_counter;
@@ -285,9 +286,8 @@ static void gen_expression(ASTNode *node) {
         case TOKEN_DIV:
             if(node->data_type == TYPE_DOUBLE) 
                 add_instruction("DIVS");
-            // TODO Zaokruhlovanie k nule.
             else
-                add_instruction("IDIVS");
+                add_instruction("CALL $idiv");
             break;
         case TOKEN_LT:
             add_instruction("LTS");
@@ -674,6 +674,24 @@ static void gen_builtins_concat(void) {
     gen_builtins_end();
 }
 
+// IDIV zaokruhluje k -nekonecnu, IFJ26 chce zaokruhlenie k nule,
+// preto delenie Int / Int ide cez float a FLOAT2INT (oseknutie).
+// Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
+// "vygeneruj pseudokod pre funkciu idiv ktora bude zaokruhlovat k nule".
+static void gen_builtins_idiv(void) {
+    add_instruction("LABEL $idiv");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@a");
+    add_instruction("DEFVAR LF@b");
+    add_instruction("POPS LF@b");
+    add_instruction("POPS LF@a");
+    add_instruction("INT2FLOAT LF@a LF@a");
+    add_instruction("INT2FLOAT LF@b LF@b");
+    add_instruction("DIV LF@a LF@a LF@b");
+    add_instruction("FLOAT2INT LF@r LF@a");
+    gen_builtins_end();
+}
+
 // Generates built in functions
 static void gen_builtins(void) {
     gen_builtins_readInt();
@@ -686,6 +704,7 @@ static void gen_builtins(void) {
     gen_builtins_ord();
     gen_builtins_chr();
     gen_builtins_concat();
+    gen_builtins_idiv();
 }
 
 void gen_program(ASTNode *root) {

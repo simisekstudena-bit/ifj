@@ -1,24 +1,34 @@
 /*
-Projekt: Implementace prekladace
-Author: Patrik Kadleček xkadlep01
-
+@file generator.h
+@author Patrik Kadleček (xkadlep01)
+@brief Generator of IFJcode26 from the annotated AST
 */
+
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
 #include <stdio.h>
 #include "ast.h"
 
-// Initializes generator
+/*
+@brief initializes the instruction list and writes the .IFJcode26 header
+*/
 void gen_init(void);
 
-// Writes generated program to stdout
+/*
+@brief writes the generated program, one instruction per line
+@param out output file (stdout in the compiler)
+*/
 void gen_print(FILE *out);
 
-// Frees memory used by generator
+/*
+@brief frees all generated instructions
+*/
 void gen_free(void);
 
-// Generates final code from AST root
+/*
+@brief generates code for the whole program (built-ins and all functions)
+@param root NODE_PROGRAM after semantic analysis
+*/
 void gen_program(ASTNode *root);
-
 #endif
