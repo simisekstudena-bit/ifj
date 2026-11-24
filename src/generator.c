@@ -6,6 +6,7 @@ Author: Patrik Kadleček xkadlep01
 
 #include "generator.h"
 #include "errors.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -299,6 +300,16 @@ static void gen_expression(ASTNode *node) {
         }
         break;
     }
+    case NODE_FUNC_CALL: {
+        ASTNode *arg = node->params;
+        while(arg != NULL) {
+            gen_expression(arg);
+            arg = arg->next;
+        }
+        add_instruction("CALL %s",node->name);
+        break;
+    } 
+
     default:
         fprintf(stderr, "gen_expression: unsupported node type\n");
         exit(INTERNAL_INTERPRET_ERR);
@@ -307,9 +318,15 @@ static void gen_expression(ASTNode *node) {
         add_instruction("INT2FLOATS");
 }
 
+static void pop_params(ASTNode *param) {
+    if(param == NULL) return;
+    pop_params(param->next);
+    add_instruction("POPS LF@%s", param->unique_name);
+}
+
 static void gen_statement(ASTNode *node);
 
-//
+// Generates one block of code
 static void gen_block(ASTNode *block) {
     if(block == NULL) return;
     ASTNode *statement = block->body;
@@ -324,9 +341,10 @@ static void gen_statement(ASTNode *node) {
     if (node == NULL) {
         return;
     }
-    
     switch (node->type) {
         case NODE_EXPR_STMT: {
+            // Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
+            // "Vygeneruj pseudokod pre case NODE_EXPR_STMT"
             ASTNode *expr = node->left;
             if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0 ) {
                 ASTNode *arg = expr->params;
@@ -337,6 +355,10 @@ static void gen_statement(ASTNode *node) {
                     add_instruction("WRITE %s", operand);
                     free(operand);
                 }
+            }
+            else {
+                gen_expression(expr);
+                add_instruction("POPS GF@$trash");
             }
             break;
         }
@@ -375,6 +397,15 @@ static void gen_statement(ASTNode *node) {
             add_instruction("LABEL while$%d$end", n);
             break;
         }
+        case NODE_RETURN:
+            if(node->left != NULL)
+                gen_expression(node->left);
+            else
+                add_instruction("PUSHS nil@nil");
+            add_instruction("POPFRAME");
+            add_instruction("RETURN");
+            break;
+
         default:
             break;
     }
@@ -392,10 +423,27 @@ static void gen_function(ASTNode *node) {
         add_instruction("DEFVAR LF@%s", param->unique_name);
         param = param->next;
     }
+    param = node->params;
+    pop_params(param);
 
+    // Vygenerovane pomocou Claude Opus 5.5 s promptom: "Vygeneruj koniec funkcie,
+    // ktory vrati hodnotu posledneho vyrazu v tele funkcie."
+    // Generates the body; a non-main, non-Unit function returns the value
+    // of its last statement when that statement is an expression
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
-        gen_block(node->body);
+        ASTNode *statement = node->body->body;
+        while(statement != NULL) {
+            if(statement->next == NULL && !node->is_main && node->data_type != TYPE_UNIT
+               && statement->type == NODE_EXPR_STMT) {
+                gen_expression(statement->left);
+                add_instruction("POPFRAME");
+                add_instruction("RETURN");
+                return;
+            }
+            gen_statement(statement);
+            statement = statement->next;
+        }
     }
 
     gen_function_end(node);
@@ -407,6 +455,7 @@ void gen_program(ASTNode *root) {
     ASTNode *node = root->body;
     while(node != NULL) {
         if(node->is_main) {
+            add_instruction("DEFVAR GF@$trash");
             add_instruction("JUMP %s", node->name);
             break;
         }

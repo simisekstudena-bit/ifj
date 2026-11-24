@@ -6,7 +6,6 @@ Author: Patrik Kadleček xkadlep01
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-#include <stdlib.h>
 #include <stdio.h>
 #include "ast.h"
 
