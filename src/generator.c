@@ -257,12 +257,24 @@ static void gen_expression(ASTNode *node) {
         break;
     }
 
+    case NODE_UNARY_OP:
+        if(node->data_type == TYPE_DOUBLE)
+            add_instruction("PUSHS float@0x0p+0");
+        else
+            add_instruction("PUSHS int@0");
+        gen_expression(node->right);
+        add_instruction("SUBS");
+        break;
+
     case NODE_BINOP: {
         gen_expression(node->left);
         gen_expression(node->right);
         switch (node->op) {
         case TOKEN_PLUS:
-            add_instruction("ADDS");
+            if(node->data_type == TYPE_STRING)
+                add_instruction("CALL $concat");
+            else 
+                add_instruction("ADDS");
             break;
         case TOKEN_MINUS:
             add_instruction("SUBS");
@@ -285,6 +297,10 @@ static void gen_expression(ASTNode *node) {
             break;
         case TOKEN_EQ:
             add_instruction("EQS");
+            break;
+        case TOKEN_NEQ:
+            add_instruction("EQS");
+            add_instruction("NOTS");
             break;
         case TOKEN_LTE:
             add_instruction("GTS");
@@ -335,6 +351,8 @@ static void gen_block(ASTNode *block) {
         statement = statement->next;
     }
 }
+
+static bool in_main = false;
 
 // Generates code for one statement
 static void gen_statement(ASTNode *node) {
@@ -398,6 +416,10 @@ static void gen_statement(ASTNode *node) {
             break;
         }
         case NODE_RETURN:
+            if(in_main) {
+                add_instruction("EXIT int@0");    
+                break;
+            }
             if(node->left != NULL)
                 gen_expression(node->left);
             else
@@ -411,8 +433,10 @@ static void gen_statement(ASTNode *node) {
     }
 }
 
+
 // Generates code for one function
 static void gen_function(ASTNode *node) {
+    in_main = node->is_main;
     add_instruction("LABEL %s", node->name);
     add_instruction("CREATEFRAME");
     add_instruction("PUSHFRAME");
@@ -638,6 +662,18 @@ static void gen_builtins_chr(void) {
     gen_builtins_end();
 }
 
+// "a" + "b" ==> "ab"
+static void gen_builtins_concat(void) {
+    add_instruction("LABEL $concat");
+    gen_builtins_start();
+    add_instruction("DEFVAR LF@a");
+    add_instruction("DEFVAR LF@b");
+    add_instruction("POPS LF@b");
+    add_instruction("POPS LF@a");
+    add_instruction("CONCAT LF@r LF@a LF@b");
+    gen_builtins_end();
+}
+
 // Generates built in functions
 static void gen_builtins(void) {
     gen_builtins_readInt();
@@ -649,6 +685,7 @@ static void gen_builtins(void) {
     gen_builtins_subStr();
     gen_builtins_ord();
     gen_builtins_chr();
+    gen_builtins_concat();
 }
 
 void gen_program(ASTNode *root) {
