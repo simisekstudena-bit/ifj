@@ -143,11 +143,8 @@ static ASTNode *parse_term(void);
 static void parse_prolog(void) {
     expect(TOKEN_KW_IMPORT, "missing prolog 'import ifj26.*'.");
     expect(TOKEN_IFJ26, "missing ifj26 in prolog.");
-    free(current_token.Tatribut.string);
     advance();
-    if(strcmp(current_token.Tatribut.string, ".") != 0) {
-        syntax_error("expected '.' in prolog");
-    }
+    expect(TOKEN_DOT, "missing '.' in prolog");
     expect(TOKEN_MUL, "expected '*' in prolog.");
     expect(TOKEN_EOL, "expected end of line after prolog.");
 }
@@ -182,6 +179,7 @@ static ASTNode* parse_func_def(void) {
     //TODO: opravit, az bude @ token
     if(current_token.Ttype == TOKEN_AT_MAIN) {
         is_main = true;
+        advance();
     }
 
     expect(TOKEN_KW_DEF, "expected key word 'def'.");
@@ -258,11 +256,12 @@ static ASTNode *parse_block(void) {
 
     ASTNode *block = ast_create_node(NODE_BLOCK);
 
-    do {
+    while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOEKN_EOF){
         block->body = ast_append(block->body, parse_statement());
-    } while(current_token.Ttype != TOKEN_DEDENT);
-
-    if(current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOKEN_EOF) {
+    }
+    if(current_token.Ttype == TOKEN_DEDENT) {
+        advance();
+    } else {
         syntax_error("expected dedent after end of block or end of file.");
     }
     return block;
@@ -275,6 +274,9 @@ static ASTNode *parse_block(void) {
 static ASTNode *parse_statement(void) {
     ASTNode *node;
 
+    if (current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_ASSIGN) {
+        node = parse_assign();
+    }
     switch (current_token.Ttype) {
         case TOKEN_KW_IF:
             return parse_if();
@@ -292,9 +294,6 @@ static ASTNode *parse_statement(void) {
             node->left = parse_expression_or_func_call();
             break;
     }
-    if (current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_ASSIGN) {
-        node = parse_assign();
-        }
     expect(TOKEN_EOL, "expected end of line after statement.");
     return node;
 }
