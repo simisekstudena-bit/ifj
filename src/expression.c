@@ -227,7 +227,11 @@ static void reduce(Stack *stack) {
     ASTNode *result = NULL;
     
     if (count == 1 && to_reduce[0].kind == ITEM_TERMINAL && to_reduce[0].sym == SYM_TERM) {
-        result = make_term_node(to_reduce[0].token);
+        if (to_reduce[0].node != NULL) {
+            result = to_reduce[0].node;
+        } else {
+            result = make_term_node(to_reduce[0].token);
+        }
     }
     /*for unary minus
         first symbol to reduce (index 0) is a terminal (unary minus)
@@ -293,6 +297,14 @@ ASTNode *parse_expression(void){
                 stack_insert_handle_above(&stack, top_term_index);
             }
             StackItem item = { .kind = ITEM_TERMINAL, .sym = input_sym, .token = current_token};
+            
+            if(input_sym == SYM_TERM && current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_LPAREN) {
+                item.node = parse_func_call();
+                stack_push(&stack, item);
+                prev_is_operand = true;
+                continue;
+            }
+
             stack_push(&stack, item);
 
             if(input_sym == SYM_LPAREN) {

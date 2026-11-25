@@ -130,14 +130,12 @@ static ASTNode *parse_func_body(void);
 static ASTNode *parse_block(void);
 static ASTNode *parse_statement(void);
 static ASTNode *parse_var_decl(void);
-static ASTNode *parse_expression_or_func_call(void);
 static ASTNode *parse_return(void);
 static ASTNode *parse_assign(void);
 static ASTNode *parse_if(void);
 static ASTNode *parse_while(void);
-static ASTNode *parse_func_call(void);
 static ASTNode *parse_arguments(void);
-static ASTNode *parse_term(void);
+//static ASTNode *parse_term(void);
 
 //TODO: spravit to pozirani prologu az bude scanner znat prolog token
 static void parse_prolog(void) {
@@ -241,7 +239,7 @@ static ASTNode *parse_func_body(void) {
     if (current_token.Ttype == TOKEN_EOL) {
         return parse_block();
     }
-    ASTNode *expr = parse_expression_or_func_call();
+    ASTNode *expr = parse_expression();
     expect(TOKEN_EOL, "expected end of line after function body.");
     return expr;
 }
@@ -291,7 +289,7 @@ static ASTNode *parse_statement(void) {
             break;
         default:
             node = ast_create_node(NODE_EXPR_STMT);
-            node->left = parse_expression_or_func_call();
+            node->left = parse_expression();
             break;
     }
     expect(TOKEN_EOL, "expected end of line after statement.");
@@ -306,7 +304,7 @@ static ASTNode *parse_assign(void) {
     node->name = current_token.Tatribut.string;
     advance();
     expect(TOKEN_ASSIGN, "expected '=' in assign statement.");
-    node->left = parse_expression_or_func_call();
+    node->left = parse_expression();
     return node;
 }
 
@@ -343,7 +341,7 @@ static ASTNode *parse_return(void) {
     expect(TOKEN_KW_RETURN, "expected keyword 'return'.");
     ASTNode *node = ast_create_node(NODE_RETURN);
     if(current_token.Ttype != TOKEN_EOL) {
-        node->left = parse_expression_or_func_call();
+        node->left = parse_expression();
     }
     return node;
 }
@@ -358,7 +356,7 @@ static ASTNode *parse_var_decl(void) {
     if (current_token.Ttype == TOKEN_KW_VAL || current_token.Ttype == TOKEN_KW_VAR) {
         advance();
     } else {
-        syntax_error("expecteed 'val' or 'var' in variable declaration.");
+        syntax_error("expected 'val' or 'var' in variable declaration.");
     }
 
     expect_no_step(TOKEN_IDENTIFIER, "missing or invalid variable name");
@@ -369,26 +367,15 @@ static ASTNode *parse_var_decl(void) {
 
     node->data_type = parse_opt_type();
     expect(TOKEN_ASSIGN, "missing '=' in variable declaration");
-    node->left = parse_expression_or_func_call();
+    node->left = parse_expression();
 
     return node;
 }
 
 /*
-@brief parses expression or function call
-inconsistency in grammar -> lookahead is needed whether to parse function call or expression
-*/
-static ASTNode *parse_expression_or_func_call(void) {
-    if(current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_LPAREN) {
-        return parse_func_call();
-    }
-    return parse_expression();
-}
-
-/*
 @brief parses function call
 */
-static ASTNode *parse_func_call(void){
+ASTNode *parse_func_call(void){
     expect_no_step(TOKEN_IDENTIFIER, "expected function name.");
     ASTNode *call = ast_create_node(NODE_FUNC_CALL);
     call->name = current_token.Tatribut.string;
@@ -405,7 +392,7 @@ static ASTNode *parse_func_call(void){
 static ASTNode *parse_arguments(void){
     ASTNode *head = NULL;
     while (current_token.Ttype != TOKEN_RPAREN) {
-        head = ast_append(head, parse_term());
+        head = ast_append(head, parse_expression());
         if(current_token.Ttype == TOKEN_COMMA) {
             advance();
         } else {
@@ -417,7 +404,7 @@ static ASTNode *parse_arguments(void){
 
 /*
 @brief parses term
-*/
+
 static ASTNode *parse_term(void) {
     ASTNode *node;
     switch (current_token.Ttype) {
@@ -447,3 +434,4 @@ static ASTNode *parse_term(void) {
     advance();
     return node;
 }
+*/
