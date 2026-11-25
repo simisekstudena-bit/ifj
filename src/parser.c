@@ -143,7 +143,6 @@ static ASTNode *parse_term(void);
 static void parse_prolog(void) {
     expect(TOKEN_KW_IMPORT, "missing prolog 'import ifj26.*'.");
     expect(TOKEN_IFJ26, "missing ifj26 in prolog.");
-    advance();
     expect(TOKEN_DOT, "missing '.' in prolog");
     expect(TOKEN_MUL, "expected '*' in prolog.");
     expect(TOKEN_EOL, "expected end of line after prolog.");
@@ -267,7 +266,6 @@ static ASTNode *parse_block(void) {
     return block;
 }
 
-//TODO doplnit funkce pro statement a expression
 /*
 @brief parses statements based on their keywords
 */
@@ -276,6 +274,8 @@ static ASTNode *parse_statement(void) {
 
     if (current_token.Ttype == TOKEN_IDENTIFIER && peek_type() == TOKEN_ASSIGN) {
         node = parse_assign();
+        expect(TOKEN_EOL, "expected end of line after assing");
+        return node;
     }
     switch (current_token.Ttype) {
         case TOKEN_KW_IF:
