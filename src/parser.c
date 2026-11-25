@@ -256,7 +256,7 @@ static ASTNode *parse_block(void) {
 
     ASTNode *block = ast_create_node(NODE_BLOCK);
 
-    while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOEKN_EOF){
+    while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOKEN_EOF){
         block->body = ast_append(block->body, parse_statement());
     }
     if(current_token.Ttype == TOKEN_DEDENT) {
