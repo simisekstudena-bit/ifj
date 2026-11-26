@@ -10,7 +10,7 @@
 #include "scanner.h"
 
 /*
-terminals according to the precedence table
+terminály odpovídající precedenční tabulce
 */
 typedef enum {
     SYM_UNARY_MINUS,    // u-
@@ -20,13 +20,14 @@ typedef enum {
     SYM_EQ,             // ==, !=
     SYM_LPAREN,         // (
     SYM_RPAREN,         // )
-    SYM_TERM,           // literl or id
+    SYM_TERM,           // literal or id
     SYM_END             // $
 } PrecSymbol;
 
 /*
-@brief parses expression from current_token
-    after parsing current_token is the first token out of the expression
+@brief
+    parsuje výraz od aktuálního tokenu
+    po parsování je current_token první symbol za výrazem
 */
 ASTNode *parse_expression(void);
 

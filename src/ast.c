@@ -7,9 +7,9 @@
 #include "ast.h"
 
 /*
-@brief creates a new AST node with the specified type
-@param type the type of the AST node
-@return pointer to the newly created AST node
+@brief vytvoří nový AST uzel konkrétního typu
+@param type typ uzlu
+@return node ukazatel na nový uzel
 */
 ASTNode* ast_create_node(NodeType type) {
     ASTNode *node = (ASTNode*) calloc(1, sizeof(ASTNode));
@@ -23,10 +23,10 @@ ASTNode* ast_create_node(NodeType type) {
 }
 
 /*
-@brief appends a node to the end of the abstract syntax tree
-@param head pointer to the head of the AST
-@param node pointer to the node to be appended
-@return pointer to the head of the AST
+@brief připojí ast uzel
+@param head ukazatel na začátek stromu
+@param node ukazatel na uzel k připojení
+@return ukazatel na začátek ast
 */
 ASTNode *ast_append(ASTNode *head, ASTNode *node){
     if (head == NULL) {
@@ -41,8 +41,8 @@ ASTNode *ast_append(ASTNode *head, ASTNode *node){
 }
 
 /*
-@brief frees the memory allocated for an AST node and its children
-@param node pointer to the AST node to be freed
+@brief uvolňuje paměť alokovanou pro uzel a jeho potomky
+@param node ukazatel na uzel, který má být uvolněn
 */
 void ast_free(ASTNode *node) {
     while (node != NULL) {

@@ -13,13 +13,13 @@
 static FILE *current_file;
 Token current_token;
 /*
-in case of needed lookahead, LL(2)
+pokud bude potreba lookahead, LL(2)
 */
 static Token lookahead;
 static bool has_lookahead = false;
 
 /*
-@brief function reading the advance token
+@brief čte následující token
 */
 void advance() {
     if (has_lookahead) {
@@ -31,7 +31,8 @@ void advance() {
 }
 
 /*
-@brief peeks for the type of the next token when lookahead is needed
+@brief vrací typ následujícího tokenu v případě lookahead
+@return typ následujícího tokenu
 */
 TokenType peek_type(void) {
     if(!has_lookahead) {
@@ -41,8 +42,8 @@ TokenType peek_type(void) {
     return lookahead.Ttype;
 }
 /*
-@brief prints message to stderrin case of error and exits with exit code 2
-@param message message to write to stderr
+@brief vypíše zprávu na stderr a ukončí s návratovým kódem 2
+@param message zpráva k vypssání na stderr
 */
 void syntax_error(const char *message) {
     fprintf(stderr, "Syntax error: %s\n", message);
@@ -50,9 +51,9 @@ void syntax_error(const char *message) {
 }
 
 /*
-@brief expects token type then steps over
-@param type expected token type
-@param message message to write to stderr if type not met
+@brief zkontroluje očekávaný datový typ a pokročí dál v proudu tokenů
+@param očekávaný datový typ
+@param message zpráva, kterou vypíše na stderr, pokud se typ neshoduje
 */
 static void expect(TokenType type, const char *message) {
     if (current_token.Ttype != type) {
@@ -62,9 +63,9 @@ static void expect(TokenType type, const char *message) {
 }
 
 /*
-@brief expects token type but doesnt step over
-@param type expected token type
-@param message message to write to stderr if type not met
+@brief očekává token, ale nedělá krok
+@param type eočekávaný typ
+@param message zpráva, kterou vypíše na stderr, pokud se typ neshoduje
 */
 static void expect_no_step(TokenType type, const char *message) {
     if (current_token.Ttype != type) {
@@ -73,7 +74,7 @@ static void expect_no_step(TokenType type, const char *message) {
 }
 
 /*
-@brief skips end of line tokens
+@brief přeskakuje znaky eol
 */
 static void skip_eols(void){
     while (current_token.Ttype == TOKEN_EOL) {
@@ -82,9 +83,9 @@ static void skip_eols(void){
 }
 
 /*
-@brief converts type key word to DataType
-@param type type key word to be converted
-@return converted type kw in DataType
+@brief převádí typ klíčového slova na DataType
+@param type klíčevé slovo datového typu, které má být převedeno
+@return převedené klíčové slovo datového typu v datovém typu DataType
 */
 static DataType token_to_type(TokenType type) {
     switch (type) {
@@ -97,8 +98,8 @@ static DataType token_to_type(TokenType type) {
 }
 
 /*
-@brief parses <type>
-@return type
+@brief parsuje <type>
+@return datový typ
 */
 static DataType parse_type(void){
     DataType type = token_to_type(current_token.Ttype);
@@ -110,8 +111,8 @@ static DataType parse_type(void){
 }
 
 /*
-@brief parses <opt_type> → : <type> | epsilon
-@return either the type or none when the type is not specified
+@brief parsuje <opt_type> → : <type> | epsilon
+@return buďto typ uzlu, nebo nic, pokud nebyl datový typ specifikován
 */
 static DataType parse_opt_type(void){
     if(current_token.Ttype == TOKEN_COLON) {
@@ -122,7 +123,7 @@ static DataType parse_opt_type(void){
 }
 
 /*
-forward declaration of used functions
+dopředná deklarace funkcí
 */
 static ASTNode *parse_func_def(void);
 static ASTNode *parse_parameters(void);
@@ -135,9 +136,10 @@ static ASTNode *parse_assign(void);
 static ASTNode *parse_if(void);
 static ASTNode *parse_while(void);
 static ASTNode *parse_arguments(void);
-//static ASTNode *parse_term(void);
 
-//TODO: spravit to pozirani prologu az bude scanner znat prolog token
+/*
+@brief zpracuje prolog
+*/
 static void parse_prolog(void) {
     expect(TOKEN_KW_IMPORT, "missing prolog 'import ifj26.*'.");
     expect(TOKEN_IFJ26, "missing ifj26 in prolog.");
@@ -147,7 +149,8 @@ static void parse_prolog(void) {
 }
 
 /*
-@brief parses program following the grammar rule <program> → import ifj26.* EOL <func_list>
+@brief zpracuje program podle pravidla <program> → import ifj26.* EOL <func_list>
+připojuje nové uzly do ast
 */
 ASTNode *parse_program(FILE *source_file) {
     current_file = source_file;
@@ -167,16 +170,18 @@ ASTNode *parse_program(FILE *source_file) {
 }
 
 /*
-@brief parses function definition
-@return node of the function definition
+@brief zpracovává definici funkcí
+@return uzel definice funkce
 */
 static ASTNode* parse_func_def(void) {
     bool is_main = false;
     //<opt_main>
-    //TODO: opravit, az bude @ token
     if(current_token.Ttype == TOKEN_AT_MAIN) {
         is_main = true;
         advance();
+        while (current_token.Ttype == TOKEN_EOL) {
+            advance();
+        }
     }
 
     expect(TOKEN_KW_DEF, "expected key word 'def'.");
@@ -200,8 +205,8 @@ static ASTNode* parse_func_def(void) {
 }
 
 /*
-@brief: parses parameters in function declaration
-@return head the firts parameter
+@brief zpracovává parametry deklarace funkce
+@return head první parametr
 
 */
 static ASTNode* parse_parameters(void) {
@@ -233,7 +238,7 @@ static ASTNode* parse_parameters(void) {
 }
 
 /*
-@brief parsing function body
+@brief zpracovává tělo funkce
 */
 static ASTNode *parse_func_body(void) {
     if (current_token.Ttype == TOKEN_EOL) {
@@ -245,7 +250,7 @@ static ASTNode *parse_func_body(void) {
 }
 
 /*
-@brief parses block
+@brief zpracovává blok
 */
 static ASTNode *parse_block(void) {
     expect(TOKEN_EOL, "expected end of line before block.");
@@ -265,7 +270,7 @@ static ASTNode *parse_block(void) {
 }
 
 /*
-@brief parses statements based on their keywords
+@brief zpracovává příkazy podle jejich klíčového slova
 */
 static ASTNode *parse_statement(void) {
     ASTNode *node;
@@ -297,7 +302,8 @@ static ASTNode *parse_statement(void) {
 }
 
 /*
-@brief parses assign statement
+@brief zpracovává příkaz přiřazení
+@return node uzel přiřazení
 */
 static ASTNode *parse_assign(void) {
     ASTNode *node = ast_create_node(NODE_ASSIGN);
@@ -309,7 +315,8 @@ static ASTNode *parse_assign(void) {
 }
 
 /*
-@brief parses if statement
+@brief zpracovává příkaz if
+@return node uzel if
 */
 static ASTNode *parse_if(void) {
     ASTNode *node = ast_create_node(NODE_IF);
@@ -323,7 +330,8 @@ static ASTNode *parse_if(void) {
 }
 
 /*
-@brief parses while statement
+@brief zpracovává příkaz while
+@return node uzel while
 */
 static ASTNode *parse_while(void) {
     ASTNode *node = ast_create_node(NODE_WHILE);
@@ -335,7 +343,8 @@ static ASTNode *parse_while(void) {
 }
 
 /*
-@brief parses return statement
+@brief zpracovává return
+@return node uzel return
 */
 static ASTNode *parse_return(void) {
     expect(TOKEN_KW_RETURN, "expected keyword 'return'.");
@@ -347,8 +356,8 @@ static ASTNode *parse_return(void) {
 }
 
 /*
-@brief parses variable declaration
-whether is it a var or val is noted in is_var in the node
+@brief zpracovává deklaraci proměnných
+uvádí, jestli se jedná o var nebo val
 */
 static ASTNode *parse_var_decl(void) {
     bool is_var = (current_token.Ttype == TOKEN_KW_VAR);
@@ -373,7 +382,8 @@ static ASTNode *parse_var_decl(void) {
 }
 
 /*
-@brief parses function call
+@brief zpracovává volání funkce
+@return uzel volání
 */
 ASTNode *parse_func_call(void){
     expect_no_step(TOKEN_IDENTIFIER, "expected function name.");
@@ -387,7 +397,8 @@ ASTNode *parse_func_call(void){
 }
 
 /*
-@brief parses arguments of function call
+@brief zpracovává argumenty volání funkce
+@return head první argument
 */
 static ASTNode *parse_arguments(void){
     ASTNode *head = NULL;
@@ -401,37 +412,3 @@ static ASTNode *parse_arguments(void){
     }
     return head;
 }
-
-/*
-@brief parses term
-
-static ASTNode *parse_term(void) {
-    ASTNode *node;
-    switch (current_token.Ttype) {
-        case TOKEN_LITERAL_INT:
-            node = ast_create_node(NODE_INT_LITERAL);
-            node->int_value = current_token.Tatribut.in;
-            break;
-        case TOKEN_LITERAL_DOUBLE:
-            node = ast_create_node(NODE_DOUBLE_LITERAL);
-            node->double_value = current_token.Tatribut.db;
-            break;
-        case TOKEN_LITERAL_STRING:
-            node = ast_create_node(NODE_STRING_LITERAL);
-            node->string_value = current_token.Tatribut.string;
-            break;
-        case TOKEN_LITERAL_UNIT:
-            node = ast_create_node(NODE_UNIT_LITERAL);
-            break;
-        case TOKEN_IDENTIFIER:
-            node = ast_create_node(NODE_IDENTIFIER);
-            node->name = current_token.Tatribut.string;
-            break;
-        default:
-            syntax_error("expected literal or identifier");
-            return NULL;
-    }
-    advance();
-    return node;
-}
-*/

@@ -11,7 +11,7 @@
 #include "scanner.h"
 
 /*
-possible item types that could be on stack
+druhy prvků na zásobníku
 */
 typedef enum {
     ITEM_TERMINAL,
@@ -20,7 +20,7 @@ typedef enum {
 } ItemKind;
 
 /*
-structure of items on stack
+struktura prvku na zásobníku
 */
 typedef struct {
     ItemKind kind;
@@ -30,7 +30,7 @@ typedef struct {
 } StackItem;
 
 /*
-structure of the stack
+struktura zásobníku
 */
 typedef struct {
     StackItem *items;
@@ -39,7 +39,7 @@ typedef struct {
 } Stack;
 
 /*
-@brief initialization of stack
+@brief inicializuje zásobník
 */
 static void stack_init(Stack *stack) {
     stack->size = 0;
@@ -52,7 +52,7 @@ static void stack_init(Stack *stack) {
 }
 
 /*
-@brief frees stack
+@brief uvolňuje zásobník
 */
 static void stack_free(Stack *stack) {
     free(stack->items);
@@ -62,9 +62,9 @@ static void stack_free(Stack *stack) {
 }
 
 /*
-@brief pushes item on the stack
-@param stack stack where the item should be pushed
-@param item item to be pushed
+@brief pushne prvek na zásobník
+@param stack zásobník, kam pushuje
+@param item prvek k pushnutí
 */
 static void stack_push(Stack *stack, StackItem item) {
     if(stack->size == stack->capacity) {
@@ -80,7 +80,9 @@ static void stack_push(Stack *stack, StackItem item) {
 }
 
 /*
-@brief returns the index of the highest terminal
+@brief vrací index nejvyššího terminálu na zásobníku
+@param stack zásobník, kde hledá nejvyšší terminál
+@return i index nejvyššího terminálu
 */
 static int stack_top_terminal(const Stack *stack) {
     for(int i = stack->size - 1; i>= 0; i--) {
@@ -92,9 +94,9 @@ static int stack_top_terminal(const Stack *stack) {
 }
 
 /*
-@brief inserts handle sign above index
-@param stack stack to place the handle
-@param index index BEFORE handle (handle will be placed AFTER this index)
+@brief vloží značku handle nad uvedený index
+@param stack zásobník, kam vkládá handle
+@param index_before index před handle (handle bude ZA tímto indexem)
 */
 static void stack_insert_handle_above(Stack *stack, int index_before) {
     StackItem handle = { .kind = ITEM_HANDLE};
@@ -106,10 +108,10 @@ static void stack_insert_handle_above(Stack *stack, int index_before) {
 }
 
 /*
-@brief transfers token to a symbol from the precedence table
-@param type type to be tranferred
-@param prev_is_operand whether the previos token was an operand (to distinguish unary minus)
-@param paren_depth the number of unmatched ( parantheses
+@brief převádí token na symbol z precedenční tabulky
+@param type tup k převedení
+@param prev_is_operand jestli byl předcházející token operand (aby se rozpoznalo unární mínus)
+@param paren_depth počet nespojených závorek
 */
 static PrecSymbol token_to_symbol(TokenType type, bool prev_is_operand, int paren_depth) {
     switch(type) {
@@ -164,8 +166,8 @@ static const char prec_table[PREC_SIZE][PREC_SIZE] = {
 };
 
 /*
-@brief makes abstract syntax tree node from token
-@return node and its specifications for each node type filled in
+@brief udělá uzel ast z tokenu
+@return uzel se všemi odpovídajícími náležitostmi vyplněnými
 */
 static ASTNode *make_term_node(Token token) {
     ASTNode *node;
@@ -197,19 +199,21 @@ static ASTNode *make_term_node(Token token) {
 }
 
 /*
-@brief checks whether the symbol is binary operator
-@param sym symbol to be chekced
-@return true if it is binary sym
+@brief kontroluje, jestli je symbol binární operátor
+@param sym symbol ke kontrole
+@return jestli je nebo není bin sym
 */
 static bool is_binary_sym(PrecSymbol sym) {
     return sym == SYM_ADD_SUB || sym == SYM_MUL_DIV || sym == SYM_REL || sym == SYM_EQ;
 }
 
 /*
-@brief performs one reduction, finds the highest handle and makes nonterminal E
+@brief udělá jednu redukci, najde nejvyšší handle a vyrobíl neterminál E
+kostra pro tuto funkci byla vygenerována Claude Sonnet 5.5 
+prompt: "Udělej mi prosím kostru funkce redukce pro precedenční syntaktickou analýzu"
 */
 static void reduce(Stack *stack) {
-    /*searching for handle to start reducing*/
+    /*hledání handle*/
     int handle_index = -1;
     for(int i = stack->size -1; i >= 0; i--){
         if(stack->items[i].kind == ITEM_HANDLE) {
@@ -220,9 +224,9 @@ static void reduce(Stack *stack) {
     if (handle_index < 0) {
         syntax_error("invalid expression, handle not found.");
     }
-    /*how many items are above handle*/
+    /*kolik prvků je nad handle*/
     int count = stack->size - handle_index - 1;
-    /*part of the stack from where we will reduce*/
+    /*část zásobníku, kde budě redukováno*/
     StackItem *to_reduce = &stack->items[handle_index + 1];
     ASTNode *result = NULL;
     
@@ -233,9 +237,10 @@ static void reduce(Stack *stack) {
             result = make_term_node(to_reduce[0].token);
         }
     }
-    /*for unary minus
-        first symbol to reduce (index 0) is a terminal (unary minus)
-        second symbol to reduce (index 1) is a non terminal
+    /*
+        pro unární minus
+        první symbol k redukci (index 0) je terminál (unírní minus)
+        druhý prvek k redukci (index 1) je neterminál
     */
     else if (count == 2 && to_reduce[0].kind == ITEM_TERMINAL && to_reduce[0].sym == SYM_UNARY_MINUS 
         && to_reduce[1].kind == ITEM_NONTERMINAL){
@@ -244,13 +249,13 @@ static void reduce(Stack *stack) {
         result->right = to_reduce[1].node;
     }
     else if (count == 3) {
-        /*if the three symbols are: terminal (, non terminal, terminal ), it has to be (E)*/
+        /* pokud jsou tyto tři symboly terminál (, neterminál, terminál ), musí se jednat o (E)*/
         if(to_reduce[0].kind == ITEM_TERMINAL && to_reduce[0].sym == SYM_LPAREN && 
             to_reduce[1].kind == ITEM_NONTERMINAL &&
             to_reduce[2].kind == ITEM_TERMINAL && to_reduce[2].sym == SYM_RPAREN) {
             result = to_reduce[1].node;
         }
-        /*if the tree symbols are" nonterminal, terminal (and is a binary symbol), nonterminal, it has to be binary operation*/
+        /*pokud jsou tyto tři symboly neterminál, terminál a zároveň binární symbol, neterminál, musí se jednat o binární operaci*/
         else if (to_reduce[0].kind == ITEM_NONTERMINAL && 
             to_reduce[1].kind == ITEM_TERMINAL && is_binary_sym(to_reduce[1].sym) && 
             to_reduce[2].kind == ITEM_NONTERMINAL) {
@@ -263,7 +268,7 @@ static void reduce(Stack *stack) {
     if(result == NULL) {
         syntax_error("invalid espression");
     }
-    /*remove handle and the following items that were reduced from the stack*/
+    /* odstraní handle a zredukované prvky*/
     stack->size = handle_index;
     /*push reduced nonterminal E with the new ast node*/
     StackItem result_item = {
@@ -274,7 +279,7 @@ static void reduce(Stack *stack) {
 }
 
 /*
-@brief parses expression
+@brief parsuje výraz na základě precedence dané < > nebo =
 */
 ASTNode *parse_expression(void){
     Stack stack;
