@@ -163,6 +163,7 @@ static char *format_literal(ASTNode *node) {
     }
 }
 
+// pocitadlo pre if/while
 static int label_counter = 0;
 
 // pocitadlo pre if/while
@@ -352,7 +353,7 @@ static void gen_block(ASTNode *block) {
     }
 }
 
-static bool in_main = false;
+static ASTNode *current_function = NULL;
 
 // Generates code for one statement
 static void gen_statement(ASTNode *node) {
@@ -366,13 +367,13 @@ static void gen_statement(ASTNode *node) {
             ASTNode *expr = node->left;
             if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0 ) {
                 ASTNode *arg = expr->params;
+                gen_expression(arg);
+                add_instruction("POPS GF@$trash");
                 if(arg->type == NODE_UNIT_LITERAL || arg->data_type == TYPE_UNIT) {
                     add_instruction("WRITE string@()");
-                } else {
-                    char *operand = format_literal(arg);
-                    add_instruction("WRITE %s", operand);
-                    free(operand);
-                }
+                } 
+                else
+                    add_instruction("WRITE GF@$trash");
             }
             else {
                 gen_expression(expr);
@@ -415,15 +416,25 @@ static void gen_statement(ASTNode *node) {
             add_instruction("LABEL while$%d$end", n);
             break;
         }
+        // Vygenerovane pomocou Claude Opus 5.5 s promptom:
+        // "vygeneruj pseudokod na opraveny kod pre case NODE_RETURN"
         case NODE_RETURN:
-            if(in_main) {
-                add_instruction("EXIT int@0");    
-                break;
-            }
             if(node->left != NULL)
                 gen_expression(node->left);
-            else
+
+            if(current_function->is_main) {
+                if(node->left != NULL)
+                    add_instruction("POPS GF@$trash");
+                add_instruction("EXIT int@0");
+                break;
+            }
+
+            if(current_function->data_type == TYPE_UNIT) {
+                if(node->left != NULL)
+                    add_instruction("POPS GF@$trash");
                 add_instruction("PUSHS nil@nil");
+            }
+
             add_instruction("POPFRAME");
             add_instruction("RETURN");
             break;
@@ -436,7 +447,7 @@ static void gen_statement(ASTNode *node) {
 
 // Generates code for one function
 static void gen_function(ASTNode *node) {
-    in_main = node->is_main;
+    current_function = node;
     add_instruction("LABEL %s", node->name);
     add_instruction("CREATEFRAME");
     add_instruction("PUSHFRAME");
