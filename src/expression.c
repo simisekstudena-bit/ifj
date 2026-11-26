@@ -237,7 +237,7 @@ static void reduce(Stack *stack) {
         && to_reduce[1].kind == ITEM_NONTERMINAL){
         result = ast_create_node(NODE_UNARY_OP);
         result->op = to_reduce[0].token.Ttype;
-        result->left = to_reduce[1].node;
+        result->right = to_reduce[1].node;
     }
     else if (count == 3) {
         /*if the three symbols are: terminal (, non terminal, terminal ), it has to be (E)*/
