@@ -5,7 +5,8 @@ Projekt: Implementace prekladace
 */
 #ifndef scanner_h
    #define scanner_h
-
+   
+#include <math.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>

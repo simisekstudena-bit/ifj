@@ -36,6 +36,22 @@ static bool comment_from_paren = false;             /// blokový komentár zača
 static int indent_stack[100] = {0};                 /// zásobník úrovní odsadenia
 static int indent_top = 0;                          /// index vrcholu zásobníka odsadenia
 
+/**
+ * @brief Prevedie text desatinného literálu na double.
+ *
+ * Ak je číslo mimo rozsahu double výsledok je nekonečno, ukončí program s chybou 1.
+ *
+ * @param buffer text literálu
+ * @return hodnota literálu
+ */
+double parse_double(char *buffer) {
+    double val = atof(buffer);
+    if (isinf(val)) {
+        fprintf(stderr, "Lexikalna chyba 1: desatinny literal je mimo rozsahu\n");
+        exit(1);
+    }
+    return val;
+}
 
 /**
  * @brief Pridá znak na koniec bufferu čísla.
@@ -611,14 +627,15 @@ Token get_token(FILE *source_file){
             }
             if (c == 'd' || c == 'D') {
                 Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
-                Ttoken.Tatribut.db = atof(buffer);
+                Ttoken.Tatribut.db = parse_double(buffer);
                 length = 0;
                 state = STATE_START;
                 return Ttoken;
             }
             ungetc(c, source_file);
             Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
-            Ttoken.Tatribut.db = atof(buffer);
+            Ttoken.Tatribut.db = parse_double(buffer);
+
             length = 0;
             state = STATE_START;
             return Ttoken;
@@ -675,14 +692,14 @@ Token get_token(FILE *source_file){
 
             if (c == 'd' || c == 'D') {
                 Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
-                Ttoken.Tatribut.db = atof(buffer);
+                Ttoken.Tatribut.db = parse_double(buffer);
                 length = 0;
                 state = STATE_START;
                 return Ttoken;
             }
             ungetc(c, source_file);
             Ttoken.Ttype = TOKEN_LITERAL_DOUBLE;
-            Ttoken.Tatribut.db = atof(buffer);
+            Ttoken.Tatribut.db = parse_double(buffer);
             length = 0;
             state = STATE_START;
             return Ttoken;
