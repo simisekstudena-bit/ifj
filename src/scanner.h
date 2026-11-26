@@ -1,3 +1,8 @@
+/*
+Projekt: Implementace prekladace
+@file scanner.h 
+@author Marek Janiga (xjanigm00)
+*/
 #ifndef scanner_h
    #define scanner_h
 
@@ -7,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * @brief Stavy konečného automatu scannera.
+ */
 typedef enum {
     STATE_LINE_START,
     STATE_IDENTIFIER,
@@ -39,6 +47,9 @@ typedef enum {
     STATE_STRING_ESCAPE
 } ScannerState;
 
+/**
+ * @brief Typy tokenov, ktoré scanner vracia parseru.
+ */
 typedef enum {
     TOKEN_EOF,              // Koniec súboru
     TOKEN_EOL,              // \n 
@@ -91,6 +102,7 @@ typedef enum {
 
 } TokenType;
 
+
 typedef union{
 
 int in;
@@ -117,8 +129,18 @@ typedef struct {
 
 
 
+/**
+ * @brief Prečíta zo vstupu ďalší token.
+ * @param source_file vstupný súbor so zdrojovým kódom
+ * @return načítaný token
+ */
 Token get_token(FILE *source_file);
 
+/**
+ * @brief Uvoľní pamäť tokenu (text pri TOKEN_IDENTIFIER a TOKEN_LITERAL_STRING).
+ *
+ * @param t token, ktorého pamäť sa má uvoľniť
+ */
 void free_token(Token *t);
 
 TokenType lookup_keyword(char *str);
