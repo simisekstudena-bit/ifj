@@ -1,7 +1,8 @@
 /*
 Projekt: Implementace prekladace
-Author: Patrik Kadleček xkadlep01
-
+@file generator.c
+@author Patrik Kadleček (xkadlep01)
+@brief generacia finalneho kodu
 */
 
 #include "generator.h"
@@ -10,29 +11,40 @@ Author: Patrik Kadleček xkadlep01
 #include <string.h>
 #include <stdarg.h>
 
-// Struct for keeping instructions
-// One node == one instruction
+/*
+===== LINKED LIST =====
+inspiracia z druhej prednasky IAL
+*/
+
+// uzol
 typedef struct node {
     char *instruction;
     struct node *next;
 } node_t;
 
-// Linked list of instructions
+// zoznam
 typedef struct list {
     node_t *first;
-    node_t *last; // keeping last so we can append fast - O(1)
+    node_t *last; // ukladame posledny prvok na rychle appendovanie
 } list_t;
 
+// zoznam vsetkych vygenerovanych instrukcii
 static list_t code;
 
-// Initializes linked list
+/*
+@brief inicializovanie zoznamu
+@param l pointer na zoznam
+*/
 static void list_init(list_t *l) {
     l->first = NULL;
     l->last = NULL;
 }
 
-// Inserts element to the end of the list
-// Allocates space for node and gets ownership of formatted instruction
+/*
+@brief pridavanie prvkov do zoznamu
+@param l zoznam
+@param text prvok
+*/
 static void list_append(list_t *l, char *text) {
     node_t *new_node = malloc(sizeof(node_t));
 
@@ -41,21 +53,24 @@ static void list_append(list_t *l, char *text) {
         free(text);
         exit(INTERNAL_INTERPRET_ERR);
     }
-    // Takes ownership of instruction
+    // zoznam prevezme vlastnictvo instrukcie
     new_node->instruction = text;
     new_node->next = NULL;
 
-    // No elements
+    // ziadne prvky
     if (l->first == NULL) {
         l->first = new_node;
         l->last = new_node;
-    } else { // One or more elements
+    } else { // jeden alebo viac prvkov
         l->last->next = new_node;
         l->last = new_node;
     }
 }
 
-// Frees every node and its string
+/*
+@brief uvolnenie zoznamu
+@param l zoznam ktory chceme uvolnit
+*/
 static void list_free(list_t *l) {
     while (l->first != NULL) {
         node_t *current = l->first;
@@ -66,34 +81,41 @@ static void list_free(list_t *l) {
     l->last = NULL;
 }
 
-// Formats instruction ("PUSHS int@%d", 42) ==> PUSHS int@42
-// Returns formatted instruction
+/*
+@brief formatuje retazec podla va_list a alokuje buffer
+@param format formatovaci retazec ("PUSHS int@%d")
+@param args va_list s hodnotami pre format
+@return novo alokovany retazec (uvolni ho volajuci)
+*/
 static char *vformat(const char *format, va_list args) {
     va_list args2;
     va_copy(args2, args);
 
-    // Measures length
+    // zmeria dlzku vysledneho sformatovaneho retazca
     int len = vsnprintf(NULL, 0, format, args);
     if (len < 0) {
         fprintf(stderr, "Failed to load instruction length\n");
         exit(INTERNAL_INTERPRET_ERR);
     }
 
-    // Creates a buffer for instruction
+    // vytvorenie buffera pre instrukciu
     char *buf = malloc(len + 1);
     if (buf == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
         exit(INTERNAL_INTERPRET_ERR);
     }
 
-    // Writes formatted string into buffer
+    // zapise formatovanu instrukciu do bufferu
     vsnprintf(buf, len + 1, format, args2);
     va_end(args2);
     return buf;
 }
 
-// Helper function for format_literal
-// Returns what vformat returned
+/*
+@brief sformatuje retazec ako printf a vrati ho alokovany (obal nad vformat pre ...)
+@param format formatovaci retazec ("PUSHS int@%d")
+@return vrati alokovany retazec
+*/
 static char *alloc_format(const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -103,7 +125,10 @@ static char *alloc_format(const char *format, ...) {
     return result;
 }
 
-// Appends instruction to code list
+/*
+@brief funkcia pridavanie instrukcii do zoznamu
+@param format format instrukcie
+*/
 static void add_instruction(const char *format, ...) {
     va_list args;
     va_start(args, format);
@@ -112,9 +137,11 @@ static void add_instruction(const char *format, ...) {
     va_end(args);
 }
 
-// Converts string to final string literal format
-// Formats characters 0-32, '#', '\' to \xyz format
-// Returns allocated string (caller will free it)
+/*
+@brief formatuje znaky 0-32, # a \ na \xyz format
+@param string povodny retazec z AST
+@return novy alokovany retazec v \xyz formate
+*/
 static char *format_string_literal(const char *string) {
     size_t len = strlen(string);
     char *formatted = malloc(4*len+1);
@@ -137,8 +164,11 @@ static char *format_string_literal(const char *string) {
     return formatted;
 }
 
-// Converts literal node to operand (e.g. "int@5")
-// Returns allocated string (caller must free)
+/*
+@brief z literalu alebo premennej spravi operand (int@5)
+@param node uzol literalu (Int, Double, String, Unit) alebo premennej
+@return alokovany operand (napr. int@5)
+*/
 static char *format_literal(ASTNode *node) {
     switch (node->type) {
         case NODE_INT_LITERAL:
@@ -151,32 +181,45 @@ static char *format_literal(ASTNode *node) {
             free(formatted);
             return operand;
         }
-        case NODE_UNIT_LITERAL:    
+        case NODE_UNIT_LITERAL:
             return alloc_format("nil@nil");
         case NODE_IDENTIFIER:
             return alloc_format("LF@%s", node->unique_name);
 
-        // not a literal (throw error)
         default:
             fprintf(stderr, "format_literal: not a literal node\n");
             exit(INTERNAL_INTERPRET_ERR);
     }
 }
 
+/*
+    ====== GENERACIA KODU ======
+*/
+
 // pocitadlo pre if/while
 static int label_counter = 0;
 
-// pocitadlo pre if/while
+/*
+@brief pocitadlo pre if/while
+@return cislo pre if/while
+*/
 static int new_label(void) {
     label_counter += 1;
     return label_counter;
 }
 
+/*
+@brief inicializacia zoznamu
+*/
 void gen_init(void) {
     list_init(&code);
     add_instruction(".IFJcode26");
 }
 
+/*
+@brief vypise zoznam instrukcii
+@param out vystupny subor
+*/
 void gen_print(FILE *out) {
     node_t *current = code.first;
 
@@ -186,11 +229,17 @@ void gen_print(FILE *out) {
     }
 }
 
+/*
+@brief uvolni zoznam
+*/
 void gen_free(void) {
     list_free(&code);
 }
 
-// Pulls variables from functions to the beginning
+/*
+@brief prejde blok a pre kazdu premennu vygeneruje DEFVAR
+@param node blok (telo funkcie alebo vetva if/while)
+*/
 static void defvar_load(ASTNode *node) {
     if (node == NULL)
         return;
@@ -214,7 +263,10 @@ static void defvar_load(ASTNode *node) {
     }
 }
 
-// Generates code for the end of a function
+/*
+@brief vygeneruje koniec funkcie
+@param node uzol funkcie (podla is_main sa rozhodne medzi EXIT a RETURN)
+*/
 static void gen_function_end(ASTNode *node) {
     if(node->is_main) {
         add_instruction("EXIT int@0");
@@ -225,7 +277,10 @@ static void gen_function_end(ASTNode *node) {
     }
 }
 
-//
+/*
+@brief vygeneruje vysledok na datovy zasobnik
+@param node uzol vyrazu
+*/
 static void gen_expression(ASTNode *node) {
     switch (node->type) {
     case NODE_INT_LITERAL: {
@@ -251,7 +306,7 @@ static void gen_expression(ASTNode *node) {
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
-    } 
+    }
     case NODE_IDENTIFIER: {
         char * expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
@@ -275,7 +330,7 @@ static void gen_expression(ASTNode *node) {
         case TOKEN_PLUS:
             if(node->data_type == TYPE_STRING)
                 add_instruction("CALL $concat");
-            else 
+            else
                 add_instruction("ADDS");
             break;
         case TOKEN_MINUS:
@@ -285,7 +340,7 @@ static void gen_expression(ASTNode *node) {
             add_instruction("MULS");
             break;
         case TOKEN_DIV:
-            if(node->data_type == TYPE_DOUBLE) 
+            if(node->data_type == TYPE_DOUBLE)
                 add_instruction("DIVS");
             else
                 add_instruction("CALL $idiv");
@@ -325,7 +380,7 @@ static void gen_expression(ASTNode *node) {
         }
         add_instruction("CALL %s",node->name);
         break;
-    } 
+    }
 
     default:
         fprintf(stderr, "gen_expression: unsupported node type\n");
@@ -335,6 +390,10 @@ static void gen_expression(ASTNode *node) {
         add_instruction("INT2FLOATS");
 }
 
+/*
+@brief vyberie parametre zo zasobnika od posledneho
+@param param prvy parameter funkcie
+*/
 static void pop_params(ASTNode *param) {
     if(param == NULL) return;
     pop_params(param->next);
@@ -343,7 +402,10 @@ static void pop_params(ASTNode *param) {
 
 static void gen_statement(ASTNode *node);
 
-// Generates one block of code
+/*
+@brief vygeneruje blok kodu (napr. if/while)
+@param block blok (NODE_BLOCK), prikazy v body
+*/
 static void gen_block(ASTNode *block) {
     if(block == NULL) return;
     ASTNode *statement = block->body;
@@ -353,9 +415,13 @@ static void gen_block(ASTNode *block) {
     }
 }
 
+// funkcia na ktorej sa prave nachadzame
 static ASTNode *current_function = NULL;
 
-// Generates code for one statement
+/*
+@brief vygeneruje jeden prikaz
+@param node jeden prikaz (vyraz, deklaracia, if, while, return)
+*/
 static void gen_statement(ASTNode *node) {
     if (node == NULL) {
         return;
@@ -371,7 +437,7 @@ static void gen_statement(ASTNode *node) {
                 add_instruction("POPS GF@$trash");
                 if(arg->type == NODE_UNIT_LITERAL || arg->data_type == TYPE_UNIT) {
                     add_instruction("WRITE string@()");
-                } 
+                }
                 else
                     add_instruction("WRITE GF@$trash");
             }
@@ -445,14 +511,17 @@ static void gen_statement(ASTNode *node) {
 }
 
 
-// Generates code for one function
+/*
+@brief vygeneruje kod pre funkciu
+@param node uzol funkcie: meno, parametre, telo, typ, is_main
+*/
 static void gen_function(ASTNode *node) {
     current_function = node;
     add_instruction("LABEL %s", node->name);
     add_instruction("CREATEFRAME");
     add_instruction("PUSHFRAME");
 
-    // Defines parameters
+    // Definuje parametre
     ASTNode *param = node->params;
     while(param != NULL) {
         add_instruction("DEFVAR LF@%s", param->unique_name);
@@ -463,8 +532,8 @@ static void gen_function(ASTNode *node) {
 
     // Vygenerovane pomocou Claude Opus 5.5 s promptom: "Vygeneruj koniec funkcie,
     // ktory vrati hodnotu posledneho vyrazu v tele funkcie."
-    // Generates the body; a non-main, non-Unit function returns the value
-    // of its last statement when that statement is an expression
+    // Vygeneruje telo; funkcia, ktora nie je main ani Unit, vrati hodnotu
+    // posledneho prikazu, ak je tento prikaz vyraz
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
         ASTNode *statement = node->body->body;
@@ -484,21 +553,27 @@ static void gen_function(ASTNode *node) {
     gen_function_end(node);
 }
 
-// helper function to generate start of a builtin fucnction
+/*
+@brief pomocna funkcia pre generovanie zaciatku vstavanych funkcii
+*/
 static void gen_builtins_start(void) {
     add_instruction("CREATEFRAME");
     add_instruction("PUSHFRAME");
     add_instruction("DEFVAR LF@r");
 }
 
-// helper function to generate the end of a builtin function
+/*
+@brief pomocna funkcia pre generovanie konca vstavanych funkcii
+*/
 static void gen_builtins_end(void) {
     add_instruction("PUSHS LF@r");
     add_instruction("POPFRAME");
     add_instruction("RETURN");
 }
 
-// readInt(): Int
+/*
+@brief readInt(): Int
+*/
 static void gen_builtins_readInt(void) {
     add_instruction("LABEL readInt");
     gen_builtins_start();
@@ -509,7 +584,9 @@ static void gen_builtins_readInt(void) {
     gen_builtins_end();
 }
 
-// readDouble(): Double
+/*
+@brief readDouble(): Double
+*/
 static void gen_builtins_readDouble(void) {
     add_instruction("LABEL readDouble");
     gen_builtins_start();
@@ -520,7 +597,9 @@ static void gen_builtins_readDouble(void) {
     gen_builtins_end();
 }
 
-// readLine(): String
+/*
+@brief readLine(): String
+*/
 static void gen_builtins_readLine(void) {
     add_instruction("LABEL readLine");
     gen_builtins_start();
@@ -528,19 +607,21 @@ static void gen_builtins_readLine(void) {
     gen_builtins_end();
 }
 
-// toStr(value: Any): String
+/*
+@brief toStr(value: Any): String
+*/
 static void gen_builtins_toStr(void) {
     add_instruction("LABEL toStr");
     gen_builtins_start();
     add_instruction("DEFVAR LF@v");
     add_instruction("DEFVAR LF@t");
     add_instruction("POPS LF@v");
-    // Urcenie Typu
+    // Urcenie typu
     add_instruction("TYPE LF@t LF@v");
     add_instruction("JUMPIFEQ toStr$int LF@t string@int");
     add_instruction("JUMPIFEQ toStr$float LF@t string@float");
     add_instruction("JUMPIFEQ toStr$string LF@t string@string");
-    // If no jump (nil)
+    // ak ziadny skok neprebehol (nil)
     add_instruction("MOVE LF@r string@()");
     add_instruction("JUMP toStr$end");
     // Int
@@ -554,12 +635,14 @@ static void gen_builtins_toStr(void) {
     // String
     add_instruction("LABEL toStr$string");
     add_instruction("MOVE LF@r LF@v");
-    
+
     add_instruction("LABEL toStr$end");
     gen_builtins_end();
 }
 
-// toInt(value: Double): Int
+/*
+@brief toInt(value: Double): Int
+*/
 static void gen_builtins_toInt(void) {
     add_instruction("LABEL toInt");
     gen_builtins_start();
@@ -569,7 +652,9 @@ static void gen_builtins_toInt(void) {
     gen_builtins_end();
 }
 
-// strLength(value: String): Int
+/*
+@brief strLength(value: String): Int
+*/
 static void gen_builtins_strLenght(void) {
     add_instruction("LABEL strLength");
     gen_builtins_start();
@@ -581,7 +666,9 @@ static void gen_builtins_strLenght(void) {
 
 // Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
 // "vygeneruj mi pseudokod pre funkciu gen_builtins_subStr"
-// subStr(value: String, start: Int, end: Int): String
+/*
+@brief subStr(value: String, start: Int, end: Int): String
+*/
 static void gen_builtins_subStr(void) {
     add_instruction("LABEL subStr");
     gen_builtins_start();
@@ -599,23 +686,18 @@ static void gen_builtins_subStr(void) {
     add_instruction("POPS LF@s");
     add_instruction("STRLEN LF@len LF@s");
     // kontroly
-
     // start < 0
     add_instruction("LT LF@tmp LF@start int@0");
     add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
-
     // end < 0
     add_instruction("LT LF@tmp LF@end int@0");
     add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
-
     // start > end
     add_instruction("GT LF@tmp LF@start LF@end");
     add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
-
-    // start >= strLength(value), tested as !(start < len)
+    // start >= strLength(value), testovane ako !(start < len)
     add_instruction("LT LF@tmp LF@start LF@len");
     add_instruction("JUMPIFEQ subStr$err LF@tmp bool@false");
-
     // end > strLength(value)
     add_instruction("GT LF@tmp LF@end LF@len");
     add_instruction("JUMPIFEQ subStr$err LF@tmp bool@true");
@@ -637,7 +719,9 @@ static void gen_builtins_subStr(void) {
     gen_builtins_end();
 }
 
-// ord(value: String, index: Int): Int
+/*
+@brief ord(value: String, index: Int): Int
+*/
 static void gen_builtins_ord(void) {
     add_instruction("LABEL ord");
     gen_builtins_start();
@@ -663,17 +747,21 @@ static void gen_builtins_ord(void) {
     gen_builtins_end();
 }
 
-// chr(code: Int): String
+/*
+@brief chr(code: Int): String
+*/
 static void gen_builtins_chr(void) {
     add_instruction("LABEL chr");
     gen_builtins_start();
-    add_instruction("DEFVAR LF@code");   
+    add_instruction("DEFVAR LF@code");
     add_instruction("POPS LF@code");
     add_instruction("INT2CHAR LF@r LF@code");
     gen_builtins_end();
 }
 
-// "a" + "b" ==> "ab"
+/*
+@brief interna funkcia $concat pre + medzi retazcami
+*/
 static void gen_builtins_concat(void) {
     add_instruction("LABEL $concat");
     gen_builtins_start();
@@ -685,10 +773,12 @@ static void gen_builtins_concat(void) {
     gen_builtins_end();
 }
 
-// IDIV zaokruhluje k -nekonecnu, IFJ26 chce zaokruhlenie k nule,
-// preto delenie Int / Int ide cez float a FLOAT2INT (oseknutie).
 // Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
 // "vygeneruj pseudokod pre funkciu idiv ktora bude zaokruhlovat k nule".
+
+/*
+@brief interna funkcia na celociselne delenie so zaokruhlovanim k nule
+*/
 static void gen_builtins_idiv(void) {
     add_instruction("LABEL $idiv");
     gen_builtins_start();
@@ -703,7 +793,9 @@ static void gen_builtins_idiv(void) {
     gen_builtins_end();
 }
 
-// Generates built in functions
+/*
+@brief funkcia ktora vygeneruje vstavane funkcie
+*/
 static void gen_builtins(void) {
     gen_builtins_readInt();
     gen_builtins_readLine();
@@ -718,6 +810,10 @@ static void gen_builtins(void) {
     gen_builtins_idiv();
 }
 
+/*
+@brief funkcia na generaciu finalneho programu
+@param root koren programu
+*/
 void gen_program(ASTNode *root) {
 
     ASTNode *node = root->body;
