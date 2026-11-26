@@ -10,21 +10,21 @@
 #include "types.h"
 
 /*
-@brief enumeration of possible node types
-components of each node are in the comments
+@brief seznam možných typů uzlů
+v komentářích jsou součásti, potomci
 */
 typedef enum {
-    NODE_PROGRAM,       // list of functions in body
+    NODE_PROGRAM,       // seznam funkcí v body
     NODE_FUNC_DEF,      //name, params, opt data_type, body, is_main
-    NODE_FUNC_CALL,     //name, params used as arguments
+    NODE_FUNC_CALL,     //name, params jako argumenty
     NODE_PARAM,         //name, data_type
-    NODE_BLOCK,         // first statement in body, following statements through pointer next
-    NODE_VAR_DECL,      // name, is_var, data_type, inicialization in left pointer
-    NODE_ASSIGN,        //name, statement in left pointer
+    NODE_BLOCK,         // první příkaz v body, další příkazy v ukazateli next
+    NODE_VAR_DECL,      // name, is_var, data_type, inicializace v left
+    NODE_ASSIGN,        //name, příkaz v left
     NODE_IF,            // cond, body then, else body
     NODE_WHILE,         // cond, body
-    NODE_RETURN,        // expression to return in left pointer
-    NODE_EXPR_STMT,     // expression in left pointer
+    NODE_RETURN,        // výraz k navrácení v left
+    NODE_EXPR_STMT,     // výraz v left
     NODE_INT_LITERAL,   // int_value    
     NODE_DOUBLE_LITERAL, //double_value    
     NODE_STRING_LITERAL, // string_value   
@@ -35,18 +35,18 @@ typedef enum {
 } NodeType;
 
 /*
-@brief structure representing a node
+@brief struktura uzlu ast
 */
 typedef struct ASTNode {
     NodeType type;
-    struct ASTNode *next;       // pointer to the next node
+    struct ASTNode *next;       // ukazatel na další
 
     struct ASTNode *left;       // left operand
     struct ASTNode *right;      // right operand
-    struct ASTNode *cond;       // condition for if and while nodes
-    struct ASTNode *body;       // body (then branch, loop, block)
-    struct ASTNode *else_body;  // else branch
-    struct ASTNode *params;     // function parameters, arguments
+    struct ASTNode *cond;       // podmínka pro uzly if a while
+    struct ASTNode *body;       // body (then větev, loop, block)
+    struct ASTNode *else_body;  // else větev
+    struct ASTNode *params;     // parametery, argumenty funkce
 
     char *name;                 
     char *string_value;

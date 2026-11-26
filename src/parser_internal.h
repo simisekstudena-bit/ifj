@@ -1,7 +1,7 @@
 /*
 @file parser_internal.h
 @author Simona Studená (xstudes00)
-@brief shared parser state and helpers used by parser.c and expression.c
+@brief sdílené prostředky pro parser.c a expression.c
 */
 
 #ifndef PARSER_INTERNAL_H
@@ -10,10 +10,10 @@
 #include "scanner.h"
 #include "ast.h"
 
-extern Token current_token;     //current token to be parsed
-void advance(void);            // reads advance token, respects lookahead
-TokenType peek_type(void);      // peeks for lookaheads token type
-void syntax_error(const char *message);     // writes errors to stderr aned exits with code 2
-ASTNode *parse_func_call(void);
+extern Token current_token;     // aktuální token
+void advance(void);            // čte další token s ohledem na lookahead pokud je
+TokenType peek_type(void);      // vrací typ dalšího tokenu pokud lookahead
+void syntax_error(const char *message);     // vypisuje na stderr v případě chyby
+ASTNode *parse_func_call(void);     // zpracovává volání funkce pro rozšíření funexp
 
 #endif
