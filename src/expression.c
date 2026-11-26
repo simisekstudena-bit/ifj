@@ -248,6 +248,13 @@ static void reduce(Stack *stack) {
         result->op = to_reduce[0].token.Ttype;
         result->right = to_reduce[1].node;
     }
+    /*
+        pro ( " " )
+    */
+    else if (count == 2 && to_reduce[0].kind == ITEM_TERMINAL && to_reduce[0].sym == SYM_LPAREN 
+        && to_reduce[1].kind == ITEM_TERMINAL && to_reduce[1].sym == SYM_RPAREN) {
+        result = ast_create_node(NODE_UNIT_LITERAL);
+    }
     else if (count == 3) {
         /* pokud jsou tyto tři symboly terminál (, neterminál, terminál ), musí se jednat o (E)*/
         if(to_reduce[0].kind == ITEM_TERMINAL && to_reduce[0].sym == SYM_LPAREN && 
