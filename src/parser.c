@@ -260,6 +260,13 @@ static ASTNode *parse_block(void) {
 
     while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOKEN_EOF){
         block->body = ast_append(block->body, parse_statement());
+        if (current_token.Ttype == TOKEN_SEMICOLON) {
+            advance();
+        } else if (current_token.Ttype == TOKEN_EOL) {
+            advance();
+        } else if (current_token.Ttype != TOKEN_DEDENT) {
+            syntax_error("expected end of line or semicolon after statement.");
+        }
     }
     if(current_token.Ttype == TOKEN_DEDENT) {
         advance();
@@ -297,7 +304,6 @@ static ASTNode *parse_statement(void) {
             node->left = parse_expression();
             break;
     }
-    expect(TOKEN_EOL, "expected end of line after statement.");
     return node;
 }
 
