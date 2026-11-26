@@ -1,6 +1,11 @@
+/*
+Projekt: Implementace prekladace
+@file scanner.c 
+@author Marek Janiga (xjanigm00)
+*/
 #include "scanner.h"
 
-
+/** @brief Tabuľka kľúčových slov a typov tokenov*/
 Keyword keywords[] = {
     {"def", TOKEN_KW_DEF},
     {"do", TOKEN_KW_DO},
@@ -19,17 +24,28 @@ Keyword keywords[] = {
     {"ifj26",TOKEN_IFJ26},
 };
 
-static int paren_depth = 0;
-static int comment_depth = 0;
-static ScannerState state = STATE_LINE_START;
-static bool comment_has_newline = false;
+static int paren_depth = 0;                         /// počet otvorených zátvoriek '('
+static int comment_depth = 0;                        /// hĺbka vnorenia blokového komentára
+static ScannerState state = STATE_LINE_START;       /// aktuálny stav automatu
+static bool comment_has_newline = false;            /// blokový komentár obsahoval nový riadok
 static int space_count = 0;
-static bool tab_in_indent = false;
-static bool comment_from_paren = false;
-//odsadenia 
-static int indent_stack[100] = {0};
-static int indent_top = 0;  
+static bool tab_in_indent = false;                  /// v odsadení riadku bol tabulátor
+static bool comment_from_paren = false;             /// blokový komentár začal v STATE_PAREN_LINE_START
 
+//odsadenia 
+static int indent_stack[100] = {0};                 /// zásobník úrovní odsadenia
+static int indent_top = 0;                          /// index vrcholu zásobníka odsadenia
+
+
+/**
+ * @brief Pridá znak na koniec bufferu čísla.
+ *
+ * Ak by číslo bolo dlhšie ako 255 znakov, ukončí program s chybou 1.
+ *
+ * @param buffer buffer s doteraz načítaným číslom
+ * @param length aktuálna dĺžka bufferu 
+ * @param c znak, ktorý sa pridá
+ */
 void buf_add(char *buffer, int *length, int c) {
     if (*length + 1 > 255) {
         fprintf(stderr, "Lexikalna chyba 1: cislo je prilis dlhe\n");
@@ -47,6 +63,7 @@ void free_token(Token *t) {
     }
 }
 
+
 TokenType lookup_keyword(char *str){
     long int n = sizeof(keywords) / sizeof(keywords[0]);
     for (long int i = 0; i < n; i++) {
@@ -57,9 +74,12 @@ TokenType lookup_keyword(char *str){
 
 }
 
-
+/**
+ * @details V cykle číta znak po znaku a podľa aktuálneho stavu 
+ * rozhoduje o ďalšom stave. Keď je token hotový, vráti ho.
+ */
 Token get_token(FILE *source_file){
-    Token Ttoken;
+    Token Ttoken;   
     int c;
     char buffer[256];
     int length = 0;
@@ -77,9 +97,13 @@ Token get_token(FILE *source_file){
 
     switch (state){
 
+        /////////////////////////////////////
+        //// odsadenie / zaciatok riadku ////
+        /////////////////////////////////////
+
         case STATE_LINE_START:
            
-           
+            // koniec súboru najprv DEDENT pre každý otvorený blok, potom EOF
             if (c == EOF){
                 if (indent_top > 0) {
                     indent_top--;
@@ -205,6 +229,62 @@ Token get_token(FILE *source_file){
             }
             
             break;
+
+
+
+            case STATE_PAREN_LINE_START:
+
+            if (c == ' ') {
+                space_count++;
+                break;
+            }
+            if (c == '\n' || c == '\r') {
+                tab_in_indent = false;
+                space_count = 0;
+                break;
+            }
+            if (c == '\t') {
+                tab_in_indent = true;
+                break;
+            }
+            if (c == EOF) {
+                space_count = 0;
+                tab_in_indent = false;
+                state = STATE_START;
+                break;
+            }
+            if (c == '/') {
+                int next = fgetc(source_file);           
+                if (next == '/') {                       
+                    while ((c = fgetc(source_file)) != '\n' && c != EOF);   
+                    ungetc(c, source_file);              
+                    break;
+                }
+                if (next == '*') {                  
+                    comment_depth = 1;
+                    comment_from_paren = true;       
+                    state = STATE_BLOCK_COMMENT;
+                    break;
+                }
+                ungetc(next, source_file);               
+            }
+            ungetc(c, source_file);
+            if (tab_in_indent) {
+                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
+                exit(1);
+            }
+            if (c != ')' && space_count <= indent_stack[indent_top]) {
+                fprintf(stderr, "Syntakticka chyba 2: pokracovaci riadok v zatvorkach musi byt odsadeny viac\n");
+                exit(2);
+            }
+            space_count = 0;
+            state = STATE_START;
+            break;
+
+        ///////////////
+        //// start ////
+        ///////////////
+
 
 
         case STATE_START:
@@ -356,6 +436,11 @@ Token get_token(FILE *source_file){
         }
             break;
 
+        ////////////////////
+        //// identifier ////
+        ////////////////////
+
+
         
         case STATE_IDENTIFIER:
 
@@ -412,6 +497,11 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
+
+        ////////////////
+        //// number ////
+        ////////////////
+
             
 
         case STATE_NUMBER:
@@ -456,6 +546,7 @@ Token get_token(FILE *source_file){
                 state = STATE_START;
                 return Ttoken;
             }
+
             
         case STATE_NUMBER_UNDERSCORE:
             if (c >= '0' && c <= '9') {
@@ -475,55 +566,22 @@ Token get_token(FILE *source_file){
                 exit(1);
             }
 
+        ////////////////
+        //// double ////
+        ////////////////
 
-        case STATE_EQUALS:
-            if (c =='='){
-                Ttoken.Ttype=TOKEN_EQ;
-                state=STATE_START;
-                return Ttoken;
-            }
-            else{
+            case STATE_DOT:
+                if (c >= '0' && c <= '9') {
+                    buf_add(buffer, &length, c);
+                    state = STATE_DOUBLE_DIGITS;
+                    break;
+                }
                 ungetc(c, source_file);
-                Ttoken.Ttype=TOKEN_ASSIGN;
-                state=STATE_START;
-                return Ttoken;
-            }
-        case STATE_LESS:
-            if (c == '=') {
-                Ttoken.Ttype = TOKEN_LTE;
+                length = 0;
+                Ttoken.Ttype = TOKEN_DOT;
                 state = STATE_START;
                 return Ttoken;
-            }
-            else {
-                ungetc(c, source_file);
-                Ttoken.Ttype = TOKEN_LT;
-                state = STATE_START;
-                return Ttoken;
-            }
 
-        case STATE_GREATER:
-            if (c == '=') {
-                Ttoken.Ttype = TOKEN_GTE;
-                state = STATE_START;
-                return Ttoken;
-            }
-            else {
-                ungetc(c, source_file);
-                Ttoken.Ttype = TOKEN_GT;
-                state = STATE_START;
-                return Ttoken;
-            }
-
-        case STATE_NOT:
-            if (c == '=') {
-                Ttoken.Ttype = TOKEN_NEQ;
-                state = STATE_START;
-                return Ttoken;
-            }
-            else {
-                fprintf(stderr, "Lexikalna chyba 1: samostatne ! nie je povolene\n");
-                exit(1);
-            }
         
 
 
@@ -535,6 +593,7 @@ Token get_token(FILE *source_file){
             }
             fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica za bodkou\n");
             exit(1);
+
 
         case STATE_DOUBLE_DIGITS:                
             if (c >= '0' && c <= '9') {
@@ -563,6 +622,7 @@ Token get_token(FILE *source_file){
             length = 0;
             state = STATE_START;
             return Ttoken;
+
             
         case STATE_DOUBLE_UNDERSCORE:
             if (c >= '0' && c <= '9') {
@@ -576,6 +636,7 @@ Token get_token(FILE *source_file){
             }
             fprintf(stderr, "Lexikalna chyba 1: neplatny podtrznik v desatinnej casti\n");
             exit(1);
+
 
         case STATE_EXP:                          
             if (c == '+' || c == '-') {
@@ -591,6 +652,7 @@ Token get_token(FILE *source_file){
             fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica v exponente\n");
             exit(1);
 
+
         case STATE_EXP_SIGN:               
             if (c >= '0' && c <= '9') {
                 buf_add(buffer, &length, c);
@@ -599,6 +661,7 @@ Token get_token(FILE *source_file){
             }
             fprintf(stderr, "Lexikalna chyba 1: ocakava sa cislica v exponente\n");
             exit(1);
+
 
         case STATE_EXP_DIGITS:                  
             if (c >= '0' && c <= '9') {
@@ -624,6 +687,7 @@ Token get_token(FILE *source_file){
             state = STATE_START;
             return Ttoken;
 
+
         case STATE_EXP_UNDERSCORE:
             if (c >= '0' && c <= '9') {
                 if ((length + 1) > 255) {
@@ -636,6 +700,64 @@ Token get_token(FILE *source_file){
             }
             fprintf(stderr, "Lexikalna chyba 1: neplatny podtrznik v exponente\n");
             exit(1);
+
+        ///////////////////
+        //// operatory ////
+        ///////////////////
+
+
+        case STATE_EQUALS:
+            if (c =='='){
+                Ttoken.Ttype=TOKEN_EQ;
+                state=STATE_START;
+                return Ttoken;
+            }
+            else{
+                ungetc(c, source_file);
+                Ttoken.Ttype=TOKEN_ASSIGN;
+                state=STATE_START;
+                return Ttoken;
+            }
+
+        case STATE_LESS:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_LTE;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                ungetc(c, source_file);
+                Ttoken.Ttype = TOKEN_LT;
+                state = STATE_START;
+                return Ttoken;
+            }
+
+
+        case STATE_GREATER:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_GTE;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                ungetc(c, source_file);
+                Ttoken.Ttype = TOKEN_GT;
+                state = STATE_START;
+                return Ttoken;
+            }
+
+
+        case STATE_NOT:
+            if (c == '=') {
+                Ttoken.Ttype = TOKEN_NEQ;
+                state = STATE_START;
+                return Ttoken;
+            }
+            else {
+                fprintf(stderr, "Lexikalna chyba 1: samostatne ! nie je povolene\n");
+                exit(1);
+            }
+
 
         case STATE_SLASH:
             if (c == '/') {
@@ -658,6 +780,11 @@ Token get_token(FILE *source_file){
                 return Ttoken;
             }
 
+        ///////////////////
+        //// komentare ////
+        ///////////////////
+
+
         case STATE_LINE_COMMENT:
             if (c == '\n') {
                 ungetc(c, source_file);
@@ -667,6 +794,7 @@ Token get_token(FILE *source_file){
                 state = STATE_START;
             }
             break;
+
             
         case STATE_BLOCK_COMMENT:
             if (c == '\n') {
@@ -685,6 +813,7 @@ Token get_token(FILE *source_file){
                 exit(1);
             }
             break;
+
 
         case STATE_BLOCK_COMMENT_SLASH:
              if (c == '\n') {
@@ -707,6 +836,7 @@ Token get_token(FILE *source_file){
                 state = STATE_BLOCK_COMMENT;
             }
             break;
+
 
         case STATE_BLOCK_COMMENT_STAR:
             if (c == '\n') {
@@ -741,6 +871,11 @@ Token get_token(FILE *source_file){
                 state = STATE_BLOCK_COMMENT;
             }
             break;
+
+        ////////////////
+        //// string ////
+        ////////////////
+
         
             case STATE_STRING_START:
             if (c == '"') {
@@ -760,6 +895,7 @@ Token get_token(FILE *source_file){
                 state = STATE_STRING;
             }
             break;
+
 
 
            case STATE_STRING_QUOTES2:
@@ -794,6 +930,77 @@ Token get_token(FILE *source_file){
                 return Ttoken;
 
 
+            case STATE_STRING:
+                if (c == '"') {
+                Ttoken.Ttype = TOKEN_LITERAL_STRING;
+                Ttoken.Tatribut.string = str;
+                str = NULL;
+                cap = 0;
+                length = 0;
+                state = STATE_START;
+                return Ttoken;
+            }
+            if (c == '\n' || c == EOF) {
+                free(str);
+                fprintf(stderr, "Lexikalna chyba 1: neukonceny retazec\n");
+                exit(1);
+            }
+            if (c == '\\') {
+                state = STATE_STRING_ESCAPE;
+                break;
+            }
+            if (length + 2 > cap) {      
+                int newcap = cap * 2;
+                char *tmp = realloc(str, newcap);
+                if (tmp == NULL) {
+                    free(str);
+                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                    exit(99);
+                }
+                str = tmp;
+                cap = newcap;
+            }
+                str[length++] = (char)c;
+                str[length] = '\0';
+                break;
+
+
+
+            // escape sekvence
+            case STATE_STRING_ESCAPE: {
+                char out;
+                if (c == 'n')       out = '\n';
+                else if (c == 't')  out = '\t';
+                else if (c == 'r')  out = '\r';
+                else if (c == '\\') out = '\\';
+                else if (c == '"')  out = '"';
+
+                else {
+                    free(str);
+                    fprintf(stderr, "Lexikalna chyba 1: neplatna escape sekvencia\n");
+                    exit(1);
+                }
+
+
+                if (length + 2 > cap) {
+                    int newcap = cap * 2;
+                    char *tmp = realloc(str, newcap);
+                    if (tmp == NULL) {
+                        free(str);
+                        fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
+                        exit(99);
+                    }
+                    str = tmp;
+                    cap = newcap;
+                }
+                str[length++] = out;
+                str[length] = '\0';
+                state = STATE_STRING;
+                break;
+            }
+
+
+
 
             case STATE_MULTILINE_STRING:
                 if (c == '"') {
@@ -820,6 +1027,7 @@ Token get_token(FILE *source_file){
                 str[length++] = (char)c;
                 str[length] = '\0';
                 break;
+
 
 
 
@@ -882,134 +1090,6 @@ Token get_token(FILE *source_file){
                 state = STATE_MULTILINE_STRING;
                 break;
 
-            case STATE_STRING:
-                if (c == '"') {
-                Ttoken.Ttype = TOKEN_LITERAL_STRING;
-                Ttoken.Tatribut.string = str;
-                str = NULL;
-                cap = 0;
-                length = 0;
-                state = STATE_START;
-                return Ttoken;
-            }
-            if (c == '\n' || c == EOF) {
-                free(str);
-                fprintf(stderr, "Lexikalna chyba 1: neukonceny retazec\n");
-                exit(1);
-            }
-            if (c == '\\') {
-                state = STATE_STRING_ESCAPE;
-                break;
-            }
-            if (length + 2 > cap) {      
-                int newcap = cap * 2;
-                char *tmp = realloc(str, newcap);
-                if (tmp == NULL) {
-                    free(str);
-                    fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
-                    exit(99);
-                }
-                str = tmp;
-                cap = newcap;
-            }
-                str[length++] = (char)c;
-                str[length] = '\0';
-                break;
-
-
-            // escape sekvence
-            case STATE_STRING_ESCAPE: {
-                char out;
-                if (c == 'n')       out = '\n';
-                else if (c == 't')  out = '\t';
-                else if (c == 'r')  out = '\r';
-                else if (c == '\\') out = '\\';
-                else if (c == '"')  out = '"';
-
-                else {
-                    free(str);
-                    fprintf(stderr, "Lexikalna chyba 1: neplatna escape sekvencia\n");
-                    exit(1);
-                }
-
-
-                if (length + 2 > cap) {
-                    int newcap = cap * 2;
-                    char *tmp = realloc(str, newcap);
-                    if (tmp == NULL) {
-                        free(str);
-                        fprintf(stderr, "Chyba kompilatora: zlyhala alokacia pamate\n");
-                        exit(99);
-                    }
-                    str = tmp;
-                    cap = newcap;
-                }
-                str[length++] = out;
-                str[length] = '\0';
-                state = STATE_STRING;
-                break;
-            }
-            case STATE_DOT:
-                if (c >= '0' && c <= '9') {
-                    buf_add(buffer, &length, c);
-                    state = STATE_DOUBLE_DIGITS;
-                    break;
-                }
-                ungetc(c, source_file);
-                length = 0;
-                Ttoken.Ttype = TOKEN_DOT;
-                state = STATE_START;
-                return Ttoken;
-
-
-            case STATE_PAREN_LINE_START:
-
-            if (c == ' ') {
-                space_count++;
-                break;
-            }
-            if (c == '\n' || c == '\r') {
-                tab_in_indent = false;
-                space_count = 0;
-                break;
-            }
-            if (c == '\t') {
-                tab_in_indent = true;
-                break;
-            }
-            if (c == EOF) {
-                space_count = 0;
-                tab_in_indent = false;
-                state = STATE_START;
-                break;
-            }
-            if (c == '/') {
-                int next = fgetc(source_file);           
-                if (next == '/') {                       
-                    while ((c = fgetc(source_file)) != '\n' && c != EOF);   
-                    ungetc(c, source_file);              
-                    break;
-                }
-                if (next == '*') {                  
-                    comment_depth = 1;
-                    comment_from_paren = true;       
-                    state = STATE_BLOCK_COMMENT;
-                    break;
-                }
-                ungetc(next, source_file);               
-            }
-            ungetc(c, source_file);
-            if (tab_in_indent) {
-                fprintf(stderr, "Lexikalna chyba 1: Tabulator v odsadeni\n");
-                exit(1);
-            }
-            if (c != ')' && space_count <= indent_stack[indent_top]) {
-                fprintf(stderr, "Syntakticka chyba 2: pokracovaci riadok v zatvorkach musi byt odsadeny viac\n");
-                exit(2);
-            }
-            space_count = 0;
-            state = STATE_START;
-            break;
 
 
         default:
