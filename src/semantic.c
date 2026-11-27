@@ -71,8 +71,8 @@ static int sem_expression_extraction(ASTNode *expression, symtable_stack_t *stac
 
 static bool assign_conv_type(DataType target, ASTNode *value) {
     DataType src = value->data_type;
-    if (target == TYPE_ANY) return true;
     if (src == TYPE_BOOL) return false;
+    if (target == TYPE_ANY) return true;
     if (target == src) return true;
     if (target == TYPE_DOUBLE && src == TYPE_INT) {
         value->to_double = true;

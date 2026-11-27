@@ -27,6 +27,9 @@ int sem_expression(ASTNode *expression, symtable_stack_t *scopes){
 
     switch(expression-> type){
 
+        case NODE_FUNC_CALL:
+            return sem_call(expression, scopes);
+
         case NODE_INT_LITERAL:
             expression->data_type=TYPE_INT;
                 return ERROR_OK;

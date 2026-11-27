@@ -62,6 +62,8 @@ void ast_free(ASTNode *node) {
             free(node->string_value);
         }
 
+        free(node->unique_name);
+
         free(node);
 
         node = next;
