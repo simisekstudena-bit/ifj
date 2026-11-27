@@ -7,9 +7,9 @@ Projekt: Implementace prekladace
 
 #include "generator.h"
 #include "errors.h"
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
 
 /*
 ===== LINKED LIST =====
@@ -144,16 +144,16 @@ static void add_instruction(const char *format, ...) {
 */
 static char *format_string_literal(const char *string) {
     size_t len = strlen(string);
-    char *formatted = malloc(4*len+1);
-    if(formatted == NULL) {
+    char *formatted = malloc(4 * len + 1);
+    if (formatted == NULL) {
         fprintf(stderr, "Failed to allocate memory\n");
         exit(INTERNAL_INTERPRET_ERR);
     }
     int pos = 0;
 
-    for(size_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         unsigned char ch = string[i];
-        if(ch <= 32 || ch == '\\' || ch == '#') {
+        if (ch <= 32 || ch == '\\' || ch == '#') {
             sprintf(formatted + pos, "\\%03d", ch);
             pos += 4;
         } else {
@@ -171,24 +171,24 @@ static char *format_string_literal(const char *string) {
 */
 static char *format_literal(ASTNode *node) {
     switch (node->type) {
-        case NODE_INT_LITERAL:
-            return alloc_format("int@%d", node->int_value);
-        case NODE_DOUBLE_LITERAL:
-            return alloc_format("float@%a", node->double_value);
-        case NODE_STRING_LITERAL: {
-            char *formatted = format_string_literal(node->string_value);
-            char *operand = alloc_format("string@%s", formatted);
-            free(formatted);
-            return operand;
-        }
-        case NODE_UNIT_LITERAL:
-            return alloc_format("nil@nil");
-        case NODE_IDENTIFIER:
-            return alloc_format("LF@%s", node->unique_name);
+    case NODE_INT_LITERAL:
+        return alloc_format("int@%d", node->int_value);
+    case NODE_DOUBLE_LITERAL:
+        return alloc_format("float@%a", node->double_value);
+    case NODE_STRING_LITERAL: {
+        char *formatted = format_string_literal(node->string_value);
+        char *operand = alloc_format("string@%s", formatted);
+        free(formatted);
+        return operand;
+    }
+    case NODE_UNIT_LITERAL:
+        return alloc_format("nil@nil");
+    case NODE_IDENTIFIER:
+        return alloc_format("LF@%s", node->unique_name);
 
-        default:
-            fprintf(stderr, "format_literal: not a literal node\n");
-            exit(INTERNAL_INTERPRET_ERR);
+    default:
+        fprintf(stderr, "format_literal: not a literal node\n");
+        exit(INTERNAL_INTERPRET_ERR);
     }
 }
 
@@ -241,23 +241,22 @@ void gen_free(void) {
 @param node blok (telo funkcie alebo vetva if/while)
 */
 static void defvar_load(ASTNode *node) {
-    if (node == NULL)
-        return;
+    if (node == NULL) return;
     ASTNode *current = node->body;
-    while(current != NULL) {
+    while (current != NULL) {
         switch (current->type) {
-            case NODE_VAR_DECL:
-                add_instruction("DEFVAR LF@%s", current->unique_name);
-                break;
-            case NODE_IF:
-                defvar_load(current->body);
-                defvar_load(current->else_body);
-                break;
-            case NODE_WHILE:
-                defvar_load(current->body);
-                break;
-            default:
-                break;
+        case NODE_VAR_DECL:
+            add_instruction("DEFVAR LF@%s", current->unique_name);
+            break;
+        case NODE_IF:
+            defvar_load(current->body);
+            defvar_load(current->else_body);
+            break;
+        case NODE_WHILE:
+            defvar_load(current->body);
+            break;
+        default:
+            break;
         }
         current = current->next;
     }
@@ -268,7 +267,7 @@ static void defvar_load(ASTNode *node) {
 @param node uzol funkcie (podla is_main sa rozhodne medzi EXIT a RETURN)
 */
 static void gen_function_end(ASTNode *node) {
-    if(node->is_main) {
+    if (node->is_main) {
         add_instruction("EXIT int@0");
     } else {
         add_instruction("PUSHS nil@nil");
@@ -284,38 +283,38 @@ static void gen_function_end(ASTNode *node) {
 static void gen_expression(ASTNode *node) {
     switch (node->type) {
     case NODE_INT_LITERAL: {
-        char * expression = format_literal(node);
+        char *expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
     }
     case NODE_DOUBLE_LITERAL: {
-        char * expression = format_literal(node);
+        char *expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
     }
     case NODE_STRING_LITERAL: {
-        char * expression = format_literal(node);
+        char *expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
     }
     case NODE_UNIT_LITERAL: {
-        char * expression = format_literal(node);
+        char *expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
     }
     case NODE_IDENTIFIER: {
-        char * expression = format_literal(node);
+        char *expression = format_literal(node);
         add_instruction("PUSHS %s", expression);
         free(expression);
         break;
     }
 
     case NODE_UNARY_OP:
-        if(node->data_type == TYPE_DOUBLE)
+        if (node->data_type == TYPE_DOUBLE)
             add_instruction("PUSHS float@0x0p+0");
         else
             add_instruction("PUSHS int@0");
@@ -328,7 +327,7 @@ static void gen_expression(ASTNode *node) {
         gen_expression(node->right);
         switch (node->op) {
         case TOKEN_PLUS:
-            if(node->data_type == TYPE_STRING)
+            if (node->data_type == TYPE_STRING)
                 add_instruction("CALL $concat");
             else
                 add_instruction("ADDS");
@@ -340,7 +339,7 @@ static void gen_expression(ASTNode *node) {
             add_instruction("MULS");
             break;
         case TOKEN_DIV:
-            if(node->data_type == TYPE_DOUBLE)
+            if (node->data_type == TYPE_DOUBLE)
                 add_instruction("DIVS");
             else
                 add_instruction("CALL $idiv");
@@ -374,11 +373,11 @@ static void gen_expression(ASTNode *node) {
     }
     case NODE_FUNC_CALL: {
         ASTNode *arg = node->params;
-        while(arg != NULL) {
+        while (arg != NULL) {
             gen_expression(arg);
             arg = arg->next;
         }
-        add_instruction("CALL %s",node->name);
+        add_instruction("CALL %s", node->name);
         break;
     }
 
@@ -386,8 +385,7 @@ static void gen_expression(ASTNode *node) {
         fprintf(stderr, "gen_expression: unsupported node type\n");
         exit(INTERNAL_INTERPRET_ERR);
     }
-    if(node->to_double)
-        add_instruction("INT2FLOATS");
+    if (node->to_double) add_instruction("INT2FLOATS");
 }
 
 /*
@@ -395,7 +393,7 @@ static void gen_expression(ASTNode *node) {
 @param param prvy parameter funkcie
 */
 static void pop_params(ASTNode *param) {
-    if(param == NULL) return;
+    if (param == NULL) return;
     pop_params(param->next);
     add_instruction("POPS LF@%s", param->unique_name);
 }
@@ -407,9 +405,9 @@ static void gen_statement(ASTNode *node);
 @param block blok (NODE_BLOCK), prikazy v body
 */
 static void gen_block(ASTNode *block) {
-    if(block == NULL) return;
+    if (block == NULL) return;
     ASTNode *statement = block->body;
-    while(statement != NULL) {
+    while (statement != NULL) {
         gen_statement(statement);
         statement = statement->next;
     }
@@ -427,89 +425,83 @@ static void gen_statement(ASTNode *node) {
         return;
     }
     switch (node->type) {
-        case NODE_EXPR_STMT: {
-            // Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
-            // "Vygeneruj pseudokod pre case NODE_EXPR_STMT"
-            ASTNode *expr = node->left;
-            if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0 ) {
-                ASTNode *arg = expr->params;
-                gen_expression(arg);
-                add_instruction("POPS GF@$trash");
-                if(arg->type == NODE_UNIT_LITERAL || arg->data_type == TYPE_UNIT) {
-                    add_instruction("WRITE string@()");
-                }
-                else
-                    add_instruction("WRITE GF@$trash");
-            }
-            else {
-                gen_expression(expr);
-                add_instruction("POPS GF@$trash");
-            }
+    case NODE_EXPR_STMT: {
+        // Napisane podla pseudokodu od Claude Opus 5.5 s promptom:
+        // "Vygeneruj pseudokod pre case NODE_EXPR_STMT"
+        ASTNode *expr = node->left;
+        if (expr->type == NODE_FUNC_CALL && strcmp(expr->name, "print") == 0) {
+            ASTNode *arg = expr->params;
+            gen_expression(arg);
+            add_instruction("POPS GF@$trash");
+            if (arg->type == NODE_UNIT_LITERAL || arg->data_type == TYPE_UNIT) {
+                add_instruction("WRITE string@()");
+            } else
+                add_instruction("WRITE GF@$trash");
+        } else {
+            gen_expression(expr);
+            add_instruction("POPS GF@$trash");
+        }
+        break;
+    }
+    case NODE_VAR_DECL:
+        if (node->left != NULL) {
+            gen_expression(node->left);
+            add_instruction("POPS LF@%s", node->unique_name);
+        }
+        break;
+    case NODE_ASSIGN:
+        if (node->left != NULL) {
+            gen_expression(node->left);
+            add_instruction("POPS LF@%s", node->unique_name);
+        }
+        break;
+    case NODE_IF: {
+        int n = new_label();
+        gen_expression(node->cond);
+        add_instruction("PUSHS bool@false");
+        add_instruction("JUMPIFEQS if$%d$else", n);
+        gen_block(node->body);
+        add_instruction("JUMP if$%d$end", n);
+        add_instruction("LABEL if$%d$else", n);
+        gen_block(node->else_body);
+        add_instruction("LABEL if$%d$end", n);
+        break;
+    }
+    case NODE_WHILE: {
+        int n = new_label();
+        add_instruction("LABEL while$%d$start", n);
+        gen_expression(node->cond);
+        add_instruction("PUSHS bool@false");
+        add_instruction("JUMPIFEQS while$%d$end", n);
+        gen_block(node->body);
+        add_instruction("JUMP while$%d$start", n);
+        add_instruction("LABEL while$%d$end", n);
+        break;
+    }
+    // Vygenerovane pomocou Claude Opus 5.5 s promptom:
+    // "vygeneruj pseudokod na opraveny kod pre case NODE_RETURN"
+    case NODE_RETURN:
+        if (node->left != NULL) gen_expression(node->left);
+
+        if (current_function->is_main) {
+            if (node->left != NULL) add_instruction("POPS GF@$trash");
+            add_instruction("EXIT int@0");
             break;
         }
-        case NODE_VAR_DECL:
-            if(node->left != NULL) {
-                gen_expression(node->left);
-                add_instruction("POPS LF@%s", node->unique_name);
-            }
-            break;
-        case NODE_ASSIGN:
-            if(node->left != NULL) {
-                gen_expression(node->left);
-                add_instruction("POPS LF@%s", node->unique_name);
-            }
-            break;
-        case NODE_IF: {
-            int n = new_label();
-            gen_expression(node->cond);
-            add_instruction("PUSHS bool@false");
-            add_instruction("JUMPIFEQS if$%d$else", n);
-            gen_block(node->body);
-            add_instruction("JUMP if$%d$end", n);
-            add_instruction("LABEL if$%d$else", n);
-            gen_block(node->else_body);
-            add_instruction("LABEL if$%d$end", n);
-            break;
+
+        if (current_function->data_type == TYPE_UNIT) {
+            if (node->left != NULL) add_instruction("POPS GF@$trash");
+            add_instruction("PUSHS nil@nil");
         }
-        case NODE_WHILE: {
-            int n = new_label();
-            add_instruction("LABEL while$%d$start", n);
-            gen_expression(node->cond);
-            add_instruction("PUSHS bool@false");
-            add_instruction("JUMPIFEQS while$%d$end", n);
-            gen_block(node->body);
-            add_instruction("JUMP while$%d$start", n);
-            add_instruction("LABEL while$%d$end", n);
-            break;
-        }
-        // Vygenerovane pomocou Claude Opus 5.5 s promptom:
-        // "vygeneruj pseudokod na opraveny kod pre case NODE_RETURN"
-        case NODE_RETURN:
-            if(node->left != NULL)
-                gen_expression(node->left);
 
-            if(current_function->is_main) {
-                if(node->left != NULL)
-                    add_instruction("POPS GF@$trash");
-                add_instruction("EXIT int@0");
-                break;
-            }
+        add_instruction("POPFRAME");
+        add_instruction("RETURN");
+        break;
 
-            if(current_function->data_type == TYPE_UNIT) {
-                if(node->left != NULL)
-                    add_instruction("POPS GF@$trash");
-                add_instruction("PUSHS nil@nil");
-            }
-
-            add_instruction("POPFRAME");
-            add_instruction("RETURN");
-            break;
-
-        default:
-            break;
+    default:
+        break;
     }
 }
-
 
 /*
 @brief vygeneruje kod pre funkciu
@@ -523,7 +515,7 @@ static void gen_function(ASTNode *node) {
 
     // Definuje parametre
     ASTNode *param = node->params;
-    while(param != NULL) {
+    while (param != NULL) {
         add_instruction("DEFVAR LF@%s", param->unique_name);
         param = param->next;
     }
@@ -537,9 +529,9 @@ static void gen_function(ASTNode *node) {
     if (node->body != NULL && node->body->type == NODE_BLOCK) {
         defvar_load(node->body);
         ASTNode *statement = node->body->body;
-        while(statement != NULL) {
-            if(statement->next == NULL && !node->is_main && node->data_type != TYPE_UNIT
-               && statement->type == NODE_EXPR_STMT) {
+        while (statement != NULL) {
+            if (statement->next == NULL && !node->is_main && node->data_type != TYPE_UNIT &&
+                statement->type == NODE_EXPR_STMT) {
                 gen_expression(statement->left);
                 add_instruction("POPFRAME");
                 add_instruction("RETURN");
@@ -817,8 +809,8 @@ static void gen_builtins(void) {
 void gen_program(ASTNode *root) {
 
     ASTNode *node = root->body;
-    while(node != NULL) {
-        if(node->is_main) {
+    while (node != NULL) {
+        if (node->is_main) {
             add_instruction("DEFVAR GF@$trash");
             add_instruction("JUMP %s", node->name);
             break;
@@ -828,7 +820,7 @@ void gen_program(ASTNode *root) {
     gen_builtins();
 
     node = root->body;
-    while(node != NULL) {
+    while (node != NULL) {
         gen_function(node);
         node = node->next;
     }

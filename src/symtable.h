@@ -2,40 +2,35 @@
 Projekt: Implementace prekladace
 author: Jakub Ferencik xferej00
 
-File obsahuje rozhranie tabulky symbolov 
+File obsahuje rozhranie tabulky symbolov
 */
 
 #ifndef SYMTABLE_H
 #define SYMTABLE_H
 
-#include <stdbool.h>
 #include "types.h"
+#include <stdbool.h>
 struct ASTNode;
 
 /**
- * Navratove stavy tabulky symbolov. 
+ * Navratove stavy tabulky symbolov.
  * Mapovanie robi volajuci.
  */
-typedef enum{
+typedef enum {
     SYMTABLE_OK = 0,
-    SYMTABLE_ERR_ALLOC, // nepodarilo sa alokovat polozku
-    SYMTABLE_ERR_EXISTS, // navratovy stav pre pripad ze prvok s rovnakym 
+    SYMTABLE_ERR_ALLOC,  // nepodarilo sa alokovat polozku
+    SYMTABLE_ERR_EXISTS, // navratovy stav pre pripad ze prvok s rovnakym
                          // klucom existuje. treba najst prvok a manualne ho prepisat
                          // ak je prepisanie potrebne
-    SYMTABLE_ERR_FULL,   //tento stav BY NEMAL nastat ale stale sa tu nachadza
-                         // aby som nemal nekonecny cyklus
+    SYMTABLE_ERR_FULL,   // tento stav BY NEMAL nastat ale stale sa tu nachadza
+                       //  aby som nemal nekonecny cyklus
     SYMTABLE_ERR_ARGUMENT, // NULL
 } symtable_status_t;
 
 /**
  * Druh symbolu
  */
-typedef enum {
-    SYMBOL_VARIABLE,
-    SYMBOL_PARAMETER,
-    SYMBOL_FUNCTION
-} symtable_kind_t;
-
+typedef enum { SYMBOL_VARIABLE, SYMBOL_PARAMETER, SYMBOL_FUNCTION } symtable_kind_t;
 
 // parameter funkcie
 
@@ -44,16 +39,14 @@ typedef struct {
     DataType type;
 } symtable_param_t;
 
-
 // data pre premennu a parameter
 
 typedef struct {
     bool is_modifiable; // var = true, val = false
-    int scope_id;    // jedinecne cislo rozsahu pre generator
+    int scope_id;       // jedinecne cislo rozsahu pre generator
 } symtable_var_t;
 
-
- // data pre funkciu
+// data pre funkciu
 
 typedef struct {
     symtable_param_t *params; // dynamicke pole parametrov, plni sa cez add_parameter
@@ -71,8 +64,8 @@ typedef struct {
     symtable_kind_t kind;
     DataType data_type; // typ premennej/parametra, pri funkcii navratovy typ
     union {
-        symtable_var_t var;   
-        symtable_func_t func; 
+        symtable_var_t var;
+        symtable_func_t func;
     };
 } symtable_data_t;
 
@@ -82,7 +75,7 @@ typedef struct symtable_stack symtable_stack_t;
 /**
  * Funkcia vytvori prazdnu tabulku symbolov
  * Kapacita s azaokruhluje na najblizsie prvocislo
- * 
+ *
  * @param size mnozstvo poloziek v zozname
  * @return ukazatel na symtable, NULL pri chybe alokacie
  */
@@ -90,7 +83,7 @@ symtable_t *create_table(int size);
 
 /**
  * Funkcia uvolni tabulku prvkov a vsetky jej alokovane komponenty
- * 
+ *
  * @param symtable tabulka ktoru chceme uvolnit
  */
 void free_symtable(symtable_t *symtable);
@@ -102,18 +95,18 @@ void free_symtable(symtable_t *symtable);
  * @param symtable tabulka symbolov v ktorej chcem prvok vytvorit
  * @param key meno symbolu ktory ukladam do tabulky
  * @param data informacie o vkladanom symbole
- * 
+ *
  * @return stavy z symtable_status_t o tom ci presiel zapis.
  *         insert vie taktiez nafukovat pole, pointre vratene zo search_item ale ostavaju platne
  */
-symtable_status_t insert_data(symtable_t *symtable, const char *key,symtable_data_t data);
+symtable_status_t insert_data(symtable_t *symtable, const char *key, symtable_data_t data);
 
 /**
  * Funkcia vyhlada podla kluca polozku s rovnakym klucom v tabulke
- * 
+ *
  * @param symtable tabulka symbolov v ktorej chceme prvok hladat
  * @param key nazov ktory chceme v tabulke vyhladat
- * 
+ *
  * @return data itemu s tymto klucom NULL ak neexistuje
  */
 symtable_data_t *search_item(symtable_t *symtable, const char *key);
@@ -190,7 +183,8 @@ symtable_status_t add_parameter(symtable_data_t *data, const char *name, DataTyp
 /**
  * Funkcia ktora volatelovi najde id vrchneho itemu/bloku
  * @param stack na ktorom chceme id najst
- * @return jedinecne cislo rozsahu na vrchu itemu/bloku, -1 ak je symtable NULL a aj pri prazdnom zasobniku
+ * @return jedinecne cislo rozsahu na vrchu itemu/bloku, -1 ak je symtable NULL a aj pri prazdnom
+ * zasobniku
  */
 int stack_scope_id(symtable_stack_t *stack);
 #endif

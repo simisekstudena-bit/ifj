@@ -2,17 +2,17 @@
 @file: ast.c
 @author: Simona Studená (xstudes00)
 */
+#include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "ast.h"
 
 /*
 @brief vytvoří nový AST uzel konkrétního typu
 @param type typ uzlu
 @return node ukazatel na nový uzel
 */
-ASTNode* ast_create_node(NodeType type) {
-    ASTNode *node = (ASTNode*) calloc(1, sizeof(ASTNode));
+ASTNode *ast_create_node(NodeType type) {
+    ASTNode *node = (ASTNode *)calloc(1, sizeof(ASTNode));
     if (node == NULL) {
         fprintf(stderr, "Memory allocation failed.\n");
         exit(99);
@@ -28,7 +28,7 @@ ASTNode* ast_create_node(NodeType type) {
 @param node ukazatel na uzel k připojení
 @return ukazatel na začátek ast
 */
-ASTNode *ast_append(ASTNode *head, ASTNode *node){
+ASTNode *ast_append(ASTNode *head, ASTNode *node) {
     if (head == NULL) {
         return node;
     }
@@ -54,11 +54,11 @@ void ast_free(ASTNode *node) {
         ast_free(node->else_body);
         ast_free(node->params);
 
-        if(node->name != NULL) {
+        if (node->name != NULL) {
             free(node->name);
         }
 
-        if(node->string_value != NULL) {
+        if (node->string_value != NULL) {
             free(node->string_value);
         }
 

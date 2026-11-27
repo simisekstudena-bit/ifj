@@ -6,9 +6,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <stdio.h>
 #include "ast.h"
+#include <stdio.h>
 
-ASTNode* parse_program(FILE *source_file);
+ASTNode *parse_program(FILE *source_file);
 
 #endif

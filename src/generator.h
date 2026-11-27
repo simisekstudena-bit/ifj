@@ -8,8 +8,8 @@ Projekt: Implementace prekladace
 #ifndef GENERATOR_H
 #define GENERATOR_H
 
-#include <stdio.h>
 #include "ast.h"
+#include <stdio.h>
 
 /*
 @brief inicializuje zoznam instrukcii a zapise hlavicku .IFJcode26

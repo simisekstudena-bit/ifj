@@ -2,13 +2,12 @@
 @author Simona Studená (xstudes00)
 @file parser.c
 */
+#include "parser.h"
+#include "ast.h"
+#include "expression.h"
+#include "parser_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "ast.h"
-#include "parser.h"
-#include "parser_internal.h"
-#include "expression.h"
-
 
 static FILE *current_file;
 Token current_token;
@@ -26,7 +25,7 @@ void advance() {
         current_token = lookahead;
         has_lookahead = false;
     } else {
-    current_token = get_token(current_file);
+        current_token = get_token(current_file);
     }
 }
 
@@ -35,7 +34,7 @@ void advance() {
 @return typ následujícího tokenu
 */
 TokenType peek_type(void) {
-    if(!has_lookahead) {
+    if (!has_lookahead) {
         lookahead = get_token(current_file);
         has_lookahead = true;
     }
@@ -76,7 +75,7 @@ static void expect_no_step(TokenType type, const char *message) {
 /*
 @brief přeskakuje znaky eol
 */
-static void skip_eols(void){
+static void skip_eols(void) {
     while (current_token.Ttype == TOKEN_EOL) {
         advance();
     }
@@ -89,11 +88,16 @@ static void skip_eols(void){
 */
 static DataType token_to_type(TokenType type) {
     switch (type) {
-        case TOKEN_KW_INT:      return TYPE_INT;
-        case TOKEN_KW_DOUBLE:   return TYPE_DOUBLE;
-        case TOKEN_KW_STRING:   return TYPE_STRING;
-        case TOKEN_KW_UNIT:     return TYPE_UNIT;
-        default:                return TYPE_NONE;
+    case TOKEN_KW_INT:
+        return TYPE_INT;
+    case TOKEN_KW_DOUBLE:
+        return TYPE_DOUBLE;
+    case TOKEN_KW_STRING:
+        return TYPE_STRING;
+    case TOKEN_KW_UNIT:
+        return TYPE_UNIT;
+    default:
+        return TYPE_NONE;
     }
 }
 
@@ -101,9 +105,9 @@ static DataType token_to_type(TokenType type) {
 @brief parsuje <type>
 @return datový typ
 */
-static DataType parse_type(void){
+static DataType parse_type(void) {
     DataType type = token_to_type(current_token.Ttype);
-    if(type == TYPE_NONE) {
+    if (type == TYPE_NONE) {
         syntax_error("missing or invalid type.");
     }
     advance();
@@ -114,8 +118,8 @@ static DataType parse_type(void){
 @brief parsuje <opt_type> → : <type> | epsilon
 @return buďto typ uzlu, nebo nic, pokud nebyl datový typ specifikován
 */
-static DataType parse_opt_type(void){
-    if(current_token.Ttype == TOKEN_COLON) {
+static DataType parse_opt_type(void) {
+    if (current_token.Ttype == TOKEN_COLON) {
         advance();
         return parse_type();
     }
@@ -173,10 +177,10 @@ ASTNode *parse_program(FILE *source_file) {
 @brief zpracovává definici funkcí
 @return uzel definice funkce
 */
-static ASTNode* parse_func_def(void) {
+static ASTNode *parse_func_def(void) {
     bool is_main = false;
     //<opt_main>
-    if(current_token.Ttype == TOKEN_AT_MAIN) {
+    if (current_token.Ttype == TOKEN_AT_MAIN) {
         is_main = true;
         advance();
         while (current_token.Ttype == TOKEN_EOL) {
@@ -209,11 +213,11 @@ static ASTNode* parse_func_def(void) {
 @return head první parametr
 
 */
-static ASTNode* parse_parameters(void) {
+static ASTNode *parse_parameters(void) {
     ASTNode *head = NULL;
     ASTNode *tail = NULL;
 
-    while(current_token.Ttype != TOKEN_RPAREN) {
+    while (current_token.Ttype != TOKEN_RPAREN) {
         expect_no_step(TOKEN_IDENTIFIER, "missing or invalid parameter name.");
         ASTNode *param = ast_create_node(NODE_PARAM);
         param->name = current_token.Tatribut.string;
@@ -222,13 +226,13 @@ static ASTNode* parse_parameters(void) {
         expect(TOKEN_COLON, "missing ':' after parameter name.");
         param->data_type = parse_type();
 
-        if(head == NULL) {
+        if (head == NULL) {
             head = param;
         } else {
             tail->next = param;
         }
         tail = param;
-        if(current_token.Ttype == TOKEN_COMMA) {
+        if (current_token.Ttype == TOKEN_COMMA) {
             advance();
         } else {
             expect_no_step(TOKEN_RPAREN, "expected ',' or ')' in parameter list.");
@@ -258,7 +262,7 @@ static ASTNode *parse_block(void) {
 
     ASTNode *block = ast_create_node(NODE_BLOCK);
 
-    while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOKEN_EOF){
+    while (current_token.Ttype != TOKEN_DEDENT && current_token.Ttype != TOKEN_EOF) {
         block->body = ast_append(block->body, parse_statement());
         if (current_token.Ttype == TOKEN_SEMICOLON) {
             advance();
@@ -268,7 +272,7 @@ static ASTNode *parse_block(void) {
             syntax_error("expected end of line or semicolon after statement.");
         }
     }
-    if(current_token.Ttype == TOKEN_DEDENT) {
+    if (current_token.Ttype == TOKEN_DEDENT) {
         advance();
     } else {
         syntax_error("expected dedent after end of block or end of file.");
@@ -288,21 +292,21 @@ static ASTNode *parse_statement(void) {
         return node;
     }
     switch (current_token.Ttype) {
-        case TOKEN_KW_IF:
-            return parse_if();
-        case TOKEN_KW_WHILE:
-            return parse_while();
-        case TOKEN_KW_VAL:
-        case TOKEN_KW_VAR:
-            node = parse_var_decl();
-            break;
-        case TOKEN_KW_RETURN:
-            node = parse_return();
-            break;
-        default:
-            node = ast_create_node(NODE_EXPR_STMT);
-            node->left = parse_expression();
-            break;
+    case TOKEN_KW_IF:
+        return parse_if();
+    case TOKEN_KW_WHILE:
+        return parse_while();
+    case TOKEN_KW_VAL:
+    case TOKEN_KW_VAR:
+        node = parse_var_decl();
+        break;
+    case TOKEN_KW_RETURN:
+        node = parse_return();
+        break;
+    default:
+        node = ast_create_node(NODE_EXPR_STMT);
+        node->left = parse_expression();
+        break;
     }
     return node;
 }
@@ -355,7 +359,7 @@ static ASTNode *parse_while(void) {
 static ASTNode *parse_return(void) {
     expect(TOKEN_KW_RETURN, "expected keyword 'return'.");
     ASTNode *node = ast_create_node(NODE_RETURN);
-    if(current_token.Ttype != TOKEN_EOL) {
+    if (current_token.Ttype != TOKEN_EOL) {
         node->left = parse_expression();
     }
     return node;
@@ -391,7 +395,7 @@ static ASTNode *parse_var_decl(void) {
 @brief zpracovává volání funkce
 @return uzel volání
 */
-ASTNode *parse_func_call(void){
+ASTNode *parse_func_call(void) {
     expect_no_step(TOKEN_IDENTIFIER, "expected function name.");
     ASTNode *call = ast_create_node(NODE_FUNC_CALL);
     call->name = current_token.Tatribut.string;
@@ -406,11 +410,11 @@ ASTNode *parse_func_call(void){
 @brief zpracovává argumenty volání funkce
 @return head první argument
 */
-static ASTNode *parse_arguments(void){
+static ASTNode *parse_arguments(void) {
     ASTNode *head = NULL;
     while (current_token.Ttype != TOKEN_RPAREN) {
         head = ast_append(head, parse_expression());
-        if(current_token.Ttype == TOKEN_COMMA) {
+        if (current_token.Ttype == TOKEN_COMMA) {
             advance();
         } else {
             expect_no_step(TOKEN_RPAREN, "expected ',' or ')' in arguments.");

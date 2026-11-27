@@ -14,7 +14,7 @@ typedef enum {
     TYPE_DOUBLE,
     TYPE_STRING,
     TYPE_UNIT,
-    TYPE_ANY, // parametre funkcii
+    TYPE_ANY,  // parametre funkcii
     TYPE_BOOL, // interne
 } DataType;
 

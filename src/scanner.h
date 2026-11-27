@@ -1,15 +1,15 @@
 /*
 Projekt: Implementace prekladace
-@file scanner.h 
+@file scanner.h
 @author Marek Janiga (xjanigm00)
 */
 #ifndef scanner_h
-   #define scanner_h
-   
-#include <math.h>
-#include <stdio.h>
+#define scanner_h
+
 #include <ctype.h>
+#include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -43,7 +43,7 @@ typedef enum {
     STATE_STRING,
     STATE_MULTILINE_STRING,
     STATE_MULTILINE_QUOTES,
-    STATE_DOT,\
+    STATE_DOT,
     STATE_PAREN_LINE_START,
     STATE_STRING_ESCAPE
 } ScannerState;
@@ -52,83 +52,76 @@ typedef enum {
  * @brief Typy tokenov, ktoré scanner vracia parseru.
  */
 typedef enum {
-    TOKEN_EOF,              // Koniec súboru
-    TOKEN_EOL,              // \n 
-    TOKEN_INDENT,           // Začiatok bloku (väčšie odsadenie)
-    TOKEN_DEDENT,           // Koniec bloku (menšie odsadenie)
+    TOKEN_EOF,    // Koniec súboru
+    TOKEN_EOL,    // \n
+    TOKEN_INDENT, // Začiatok bloku (väčšie odsadenie)
+    TOKEN_DEDENT, // Koniec bloku (menšie odsadenie)
 
-    TOKEN_IDENTIFIER,       // Názov
-    TOKEN_LITERAL_INT,      // 42
-    TOKEN_LITERAL_DOUBLE,   // 3.14
-    TOKEN_LITERAL_STRING,   // "text"
-    TOKEN_LITERAL_UNIT,     // ()
+    TOKEN_IDENTIFIER,     // Názov
+    TOKEN_LITERAL_INT,    // 42
+    TOKEN_LITERAL_DOUBLE, // 3.14
+    TOKEN_LITERAL_STRING, // "text"
+    TOKEN_LITERAL_UNIT,   // ()
 
-    TOKEN_KW_DEF,           // def
-    TOKEN_KW_DO,            // do
-    TOKEN_KW_ELSE,          // else
-    TOKEN_KW_IF,            // if
-    TOKEN_KW_IMPORT,        // import
-    TOKEN_KW_RETURN,        // return
-    TOKEN_KW_THEN,          // then
-    TOKEN_KW_VAL,           // val
-    TOKEN_KW_VAR,           // var
-    TOKEN_KW_WHILE,         // while
+    TOKEN_KW_DEF,    // def
+    TOKEN_KW_DO,     // do
+    TOKEN_KW_ELSE,   // else
+    TOKEN_KW_IF,     // if
+    TOKEN_KW_IMPORT, // import
+    TOKEN_KW_RETURN, // return
+    TOKEN_KW_THEN,   // then
+    TOKEN_KW_VAL,    // val
+    TOKEN_KW_VAR,    // var
+    TOKEN_KW_WHILE,  // while
 
-    TOKEN_KW_INT,           // Int
-    TOKEN_KW_DOUBLE,        // Double
-    TOKEN_KW_STRING,        // String
-    TOKEN_KW_UNIT,          // Unit
+    TOKEN_KW_INT,    // Int
+    TOKEN_KW_DOUBLE, // Double
+    TOKEN_KW_STRING, // String
+    TOKEN_KW_UNIT,   // Unit
 
-    TOKEN_ASSIGN,           // =
-    TOKEN_PLUS,             // +
-    TOKEN_MINUS,            // -
-    TOKEN_MUL,              // *
-    TOKEN_DIV,              // /
+    TOKEN_ASSIGN, // =
+    TOKEN_PLUS,   // +
+    TOKEN_MINUS,  // -
+    TOKEN_MUL,    // *
+    TOKEN_DIV,    // /
 
-    TOKEN_EQ,               // ==
-    TOKEN_NEQ,              // !=
-    TOKEN_LT,               // <
-    TOKEN_LTE,              // <=
-    TOKEN_GT,               // >
-    TOKEN_GTE,              // >=
+    TOKEN_EQ,  // ==
+    TOKEN_NEQ, // !=
+    TOKEN_LT,  // <
+    TOKEN_LTE, // <=
+    TOKEN_GT,  // >
+    TOKEN_GTE, // >=
 
-    TOKEN_LPAREN,           // (
-    TOKEN_RPAREN,           // )
-    TOKEN_COLON,            // :
-    TOKEN_COMMA,            // ,
-    TOKEN_SEMICOLON,        // ;
-    TOKEN_DOT,              // .
-    TOKEN_AT_MAIN,          // @main
-    TOKEN_IFJ26             // ifj26
+    TOKEN_LPAREN,    // (
+    TOKEN_RPAREN,    // )
+    TOKEN_COLON,     // :
+    TOKEN_COMMA,     // ,
+    TOKEN_SEMICOLON, // ;
+    TOKEN_DOT,       // .
+    TOKEN_AT_MAIN,   // @main
+    TOKEN_IFJ26      // ifj26
 
 } TokenType;
 
+typedef union {
 
-typedef union{
+    int in;
+    double db;
+    char *string;
 
-int in;
-double db;
-char *string;
+} TokenAtribut;
 
-}TokenAtribut;
+typedef struct {
 
+    TokenType Ttype;
+    TokenAtribut Tatribut;
 
-
-typedef struct{
-
-TokenType Ttype;
-TokenAtribut Tatribut;
-
-}Token; 
-
+} Token;
 
 typedef struct {
     const char *name;
     TokenType type;
 } Keyword;
-
-
-
 
 /**
  * @brief Prečíta zo vstupu ďalší token.
@@ -146,7 +139,4 @@ void free_token(Token *t);
 
 TokenType lookup_keyword(char *str);
 
-
-  #endif
-
-
+#endif

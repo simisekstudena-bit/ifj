@@ -5,9 +5,9 @@ Kod semantickej analyzy
 */
 
 #include "semantic.h"
-#include "symtable.h"
 #include "ast.h"
 #include "errors.h"
+#include "symtable.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -19,19 +19,19 @@ typedef struct {
 } builtin_t;
 
 static const builtin_t builtins[] = {
-    {"print", TYPE_UNIT, 1, (DataType[]){ TYPE_ANY }},
+    {"print", TYPE_UNIT, 1, (DataType[]){TYPE_ANY}},
     {"readLine", TYPE_STRING, 0, NULL},
     {"readInt", TYPE_INT, 0, NULL},
     {"readDouble", TYPE_DOUBLE, 0, NULL},
-    {"toStr", TYPE_STRING, 1, (DataType[]){ TYPE_ANY }},
-    {"toInt", TYPE_INT, 1, (DataType[]){ TYPE_DOUBLE}},
-    {"strLength", TYPE_INT, 1, (DataType[]){ TYPE_STRING }},
-    {"subStr", TYPE_STRING, 3, (DataType[]){ TYPE_STRING, TYPE_INT, TYPE_INT }},
-    {"ord", TYPE_INT, 2, (DataType[]){ TYPE_STRING, TYPE_INT }},
-    {"chr", TYPE_STRING, 1, (DataType[]){ TYPE_INT }},
+    {"toStr", TYPE_STRING, 1, (DataType[]){TYPE_ANY}},
+    {"toInt", TYPE_INT, 1, (DataType[]){TYPE_DOUBLE}},
+    {"strLength", TYPE_INT, 1, (DataType[]){TYPE_STRING}},
+    {"subStr", TYPE_STRING, 3, (DataType[]){TYPE_STRING, TYPE_INT, TYPE_INT}},
+    {"ord", TYPE_INT, 2, (DataType[]){TYPE_STRING, TYPE_INT}},
+    {"chr", TYPE_STRING, 1, (DataType[]){TYPE_INT}},
 };
 
-static const char *param_names[] = { "p0", "p1", "p2" };
+static const char *param_names[] = {"p0", "p1", "p2"};
 
 static symtable_t *g_global = NULL;
 static int check_function(ASTNode *function);
@@ -85,13 +85,14 @@ int sem_call(ASTNode *node, symtable_stack_t *scopes) {
     symtable_data_t *data = search_item(g_global, node->name);
     if (data == NULL) return SEM_VAL_UNDEFINED_ERR;
     int num_arguments = 0;
-    for (ASTNode *param = node->params; param != NULL; param = param->next) num_arguments++;
+    for (ASTNode *param = node->params; param != NULL; param = param->next)
+        num_arguments++;
     if (num_arguments != data->func.param_count) return SEM_CALL_ERR;
     int argument_index = 0;
     for (ASTNode *param = node->params; param != NULL; param = param->next) {
         int err = sem_expression(param, scopes);
         if (err != ERROR_OK) return err;
-        if (!assign_conv_type(data->func.params[argument_index].type, param)) return  SEM_CALL_ERR;
+        if (!assign_conv_type(data->func.params[argument_index].type, param)) return SEM_CALL_ERR;
         argument_index++;
     }
     if (data->data_type == TYPE_NONE) {
@@ -107,10 +108,11 @@ int sem_call(ASTNode *node, symtable_stack_t *scopes) {
 }
 
 /**
- * vygenerovane pomocou claude opus s promptom: Vytvor funkciu declare_val ktora zapise data val do symtable a prida
- * nodu unique name
+ * vygenerovane pomocou claude opus s promptom: Vytvor funkciu declare_val ktora zapise data val do
+ * symtable a prida nodu unique name
  */
-static int declare_val(symtable_stack_t *stack, ASTNode *node, symtable_kind_t kind, bool modifiable) {
+static int declare_val(symtable_stack_t *stack, ASTNode *node, symtable_kind_t kind,
+                       bool modifiable) {
     symtable_data_t data = {0};
     data.kind = kind;
     data.data_type = node->data_type;
@@ -136,7 +138,8 @@ static bool ends_with_return(ASTNode *block) {
     ASTNode *last = last_statement(block);
     if (last == NULL) return false;
     if (last->type == NODE_RETURN) return true;
-    if (last->type == NODE_IF) return ends_with_return(last->body) && ends_with_return(last->else_body);
+    if (last->type == NODE_IF)
+        return ends_with_return(last->body) && ends_with_return(last->else_body);
     return false;
 }
 
@@ -144,14 +147,14 @@ static bool result_is_unit(ASTNode *block) {
     ASTNode *last = last_statement(block);
     if (last == NULL) return true;
     switch (last->type) {
-        case NODE_EXPR_STMT:
-            return last->left->data_type == TYPE_UNIT;
-        case NODE_IF:
-            return result_is_unit(last->body) && result_is_unit(last->else_body);
-        case NODE_RETURN:
-            return false;
-        default:
-            return true;
+    case NODE_EXPR_STMT:
+        return last->left->data_type == TYPE_UNIT;
+    case NODE_IF:
+        return result_is_unit(last->body) && result_is_unit(last->else_body);
+    case NODE_RETURN:
+        return false;
+    default:
+        return true;
     }
 }
 
@@ -175,8 +178,10 @@ static int check_body_result(ASTNode *body, symtable_data_t *func) {
     }
 
     if (!explicit_type) {
-        if (value != NULL) func->data_type = value->data_type;
-        else func->data_type = TYPE_UNIT;
+        if (value != NULL)
+            func->data_type = value->data_type;
+        else
+            func->data_type = TYPE_UNIT;
         return ERROR_OK;
     }
 
@@ -200,7 +205,7 @@ static int check_function(ASTNode *function) {
 
     data->func.inferring = true;
     symtable_stack_t *local_stack;
-    if ((local_stack = init_stack()) == NULL)  return  INTERNAL_INTERPRET_ERR;
+    if ((local_stack = init_stack()) == NULL) return INTERNAL_INTERPRET_ERR;
     symtable_t *func_table = create_table(16);
     if (func_table == NULL || stack_push(local_stack, func_table) != SYMTABLE_OK) {
         free_symtable(func_table);
@@ -213,7 +218,8 @@ static int check_function(ASTNode *function) {
     }
     if (err == ERROR_OK) err = sem_check_block(function->body, local_stack, data);
     if (err == ERROR_OK) err = check_body_result(function->body, data);
-    if (err == ERROR_OK && data->func.is_main && data->data_type != TYPE_UNIT) err = SEM_DIFF_TYPE_ERR;
+    if (err == ERROR_OK && data->func.is_main && data->data_type != TYPE_UNIT)
+        err = SEM_DIFF_TYPE_ERR;
     function->data_type = data->data_type;
     data->func.inferring = false;
     data->func.checked = true;
@@ -234,8 +240,6 @@ int sem_lookup_var(symtable_stack_t *scopes, ASTNode *node, symtable_data_t **fo
     return ERROR_OK;
 }
 
-
-
 static int first_run(ASTNode *root, symtable_t *global) {
     const size_t count = sizeof(builtins) / sizeof(builtins[0]);
     for (size_t i = 0; i < count; i++) {
@@ -244,11 +248,13 @@ static int first_run(ASTNode *root, symtable_t *global) {
         data.data_type = builtins[i].return_type;
         data.func.builtin = true;
         data.func.return_explicit = true;
-        if (insert_data(global, builtins[i].name, data) != SYMTABLE_OK) return INTERNAL_INTERPRET_ERR;
+        if (insert_data(global, builtins[i].name, data) != SYMTABLE_OK)
+            return INTERNAL_INTERPRET_ERR;
         symtable_data_t *table = search_item(global, builtins[i].name);
-        for (int param = 0;  param < builtins[i].param_num; param++) {
-            const symtable_status_t status = add_parameter(table, param_names[param], builtins[i].param_type[param]);
-            if ( status != SYMTABLE_OK) {
+        for (int param = 0; param < builtins[i].param_num; param++) {
+            const symtable_status_t status =
+                add_parameter(table, param_names[param], builtins[i].param_type[param]);
+            if (status != SYMTABLE_OK) {
                 if (status == SYMTABLE_ERR_EXISTS) return SEM_REDEF_ERR;
                 return INTERNAL_INTERPRET_ERR;
             }
@@ -264,16 +270,15 @@ static int first_run(ASTNode *root, symtable_t *global) {
         data.data_type = function->data_type;
         data.func.is_main = function->is_main;
         data.func.return_explicit = (function->data_type != TYPE_NONE);
-        symtable_status_t  err;
+        symtable_status_t err;
         if ((err = insert_data(global, function->name, data)) != SYMTABLE_OK) {
-            if (err == SYMTABLE_ERR_EXISTS)
-                return SEM_REDEF_ERR;
+            if (err == SYMTABLE_ERR_EXISTS) return SEM_REDEF_ERR;
             return INTERNAL_INTERPRET_ERR;
         }
         symtable_data_t *table = search_item(global, function->name);
         for (ASTNode *param = function->params; param != NULL; param = param->next) {
             symtable_status_t status = add_parameter(table, param->name, param->data_type);
-            if ( status != SYMTABLE_OK) {
+            if (status != SYMTABLE_OK) {
                 if (status == SYMTABLE_ERR_EXISTS) return SEM_REDEF_ERR;
                 return INTERNAL_INTERPRET_ERR;
             }
@@ -292,45 +297,47 @@ static int first_run(ASTNode *root, symtable_t *global) {
 
 /**
  * vygenerovane pomocou claude opus s promptom: Vytvor funkciu check_statement ktora podla typu
- * prikazu skontroluje semantiku, pri var_decl najprv skontroluje hodnotu a potom zapise cez declare_val,
- * pri assign skontroluje ci premenna existuje a je var, return posle do check_return, pri if a while
- * musi byt podmienka bool a bloky skontroluje cez sem_check_block. pouzi sem_expression_extraction,
- * sem_lookup_var a assign_conv_type, chyby vracaj z errors.h
+ * prikazu skontroluje semantiku, pri var_decl najprv skontroluje hodnotu a potom zapise cez
+ * declare_val, pri assign skontroluje ci premenna existuje a je var, return posle do check_return,
+ * pri if a while musi byt podmienka bool a bloky skontroluje cez sem_check_block. pouzi
+ * sem_expression_extraction, sem_lookup_var a assign_conv_type, chyby vracaj z errors.h
  */
 static int check_statement(ASTNode *s, symtable_stack_t *stack, symtable_data_t *func) {
     int err;
     switch (s->type) {
-        case NODE_VAR_DECL:
-            if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
-            if (s->left->data_type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
-            if (s->data_type == TYPE_NONE) s->data_type = s->left->data_type;
-            else if (!assign_conv_type(s->data_type, s->left)) return SEM_DIFF_TYPE_ERR;
-            return declare_val(stack, s, SYMBOL_VARIABLE, s->is_var);
-        case NODE_ASSIGN: {
-            symtable_data_t *var = NULL;
-            if ((err = sem_lookup_var(stack, s, &var)) != ERROR_OK) return err;
-            if (var->kind == SYMBOL_PARAMETER || !var->var.is_modifiable) return SEM_INITIALIZATION_ERR;
-            if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
-            if (!assign_conv_type(s->data_type, s->left)) return SEM_DIFF_TYPE_ERR;
-            return ERROR_OK;
-        }
-        case NODE_EXPR_STMT:
-            if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
-            if (s->left->data_type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
-            return ERROR_OK;
-        case NODE_RETURN:
-            return check_return(s->left, stack, func);
-        case NODE_IF:
-            if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
-            if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
-            if ((err = sem_check_block(s->body, stack, func)) != ERROR_OK) return err;
-            return sem_check_block(s->else_body, stack, func);
-        case NODE_WHILE:
-            if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
-            if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
-            return sem_check_block(s->body, stack, func);
-        default:
-            return INTERNAL_INTERPRET_ERR;
+    case NODE_VAR_DECL:
+        if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
+        if (s->left->data_type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+        if (s->data_type == TYPE_NONE)
+            s->data_type = s->left->data_type;
+        else if (!assign_conv_type(s->data_type, s->left))
+            return SEM_DIFF_TYPE_ERR;
+        return declare_val(stack, s, SYMBOL_VARIABLE, s->is_var);
+    case NODE_ASSIGN: {
+        symtable_data_t *var = NULL;
+        if ((err = sem_lookup_var(stack, s, &var)) != ERROR_OK) return err;
+        if (var->kind == SYMBOL_PARAMETER || !var->var.is_modifiable) return SEM_INITIALIZATION_ERR;
+        if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
+        if (!assign_conv_type(s->data_type, s->left)) return SEM_DIFF_TYPE_ERR;
+        return ERROR_OK;
+    }
+    case NODE_EXPR_STMT:
+        if ((err = sem_expression_extraction(s->left, stack)) != ERROR_OK) return err;
+        if (s->left->data_type == TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+        return ERROR_OK;
+    case NODE_RETURN:
+        return check_return(s->left, stack, func);
+    case NODE_IF:
+        if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
+        if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+        if ((err = sem_check_block(s->body, stack, func)) != ERROR_OK) return err;
+        return sem_check_block(s->else_body, stack, func);
+    case NODE_WHILE:
+        if ((err = sem_expression(s->cond, stack)) != ERROR_OK) return err;
+        if (s->cond->data_type != TYPE_BOOL) return SEM_DIFF_TYPE_ERR;
+        return sem_check_block(s->body, stack, func);
+    default:
+        return INTERNAL_INTERPRET_ERR;
     }
 }
 
@@ -351,8 +358,8 @@ static int check_return(ASTNode *value, symtable_stack_t *stack, symtable_data_t
     return ERROR_OK;
 }
 
-
-static int sem_check_block(ASTNode *block, symtable_stack_t *stack, symtable_data_t *function_data) {
+static int sem_check_block(ASTNode *block, symtable_stack_t *stack,
+                           symtable_data_t *function_data) {
     if (block == NULL || block->type != NODE_BLOCK) return INTERNAL_INTERPRET_ERR;
 
     symtable_t *scope = create_table(16);

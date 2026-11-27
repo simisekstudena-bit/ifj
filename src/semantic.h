@@ -4,12 +4,12 @@ author: Jakub Ferencik xferenj00
 Rozhranie semantickej analyzy
 */
 
-#ifndef  SEMANTIC_H
-#define  SEMANTIC_H
+#ifndef SEMANTIC_H
+#define SEMANTIC_H
 
 #include "ast.h"
-#include "symtable.h"
 #include "errors.h"
+#include "symtable.h"
 
 /**
  * vstupny bod semantiky ktory sa vola z mainu.

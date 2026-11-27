@@ -5,17 +5,16 @@ author: Jakub Ferencik xferej00
 
 Vstupny bod prekladaca
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include "symtable.h"
-#include "parser.h"
 #include "ast.h"
 #include "errors.h"
-#include "semantic.h"
 #include "generator.h"
+#include "parser.h"
+#include "semantic.h"
+#include "symtable.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-int main(void)
-{
+int main(void) {
     ASTNode *root = parse_program(stdin);
 
     int error = semantic_analysis(root);
